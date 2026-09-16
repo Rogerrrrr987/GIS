@@ -308,7 +308,7 @@
       'gp.default_save_selected_name': '選取圖元',
       'gp.progress_running': '運算進行中...',
       'gp.cancel': '取消',
-      'gp.run_btn': '執行空間運算',
+      'gp.run_btn': '開始處理',
 
       // Field Calculator Modal
       'calc.title': '欄位計算器 (Field Calculator)',
@@ -760,7 +760,7 @@
       'gp.default_save_selected_name': 'Selected Features',
       'gp.progress_running': 'Processing in progress...',
       'gp.cancel': 'Cancel',
-      'gp.run_btn': 'Run Geoprocessing',
+      'gp.run_btn': 'Run Tool',
 
       // Field Calculator Modal
       'calc.title': 'Field Calculator',
