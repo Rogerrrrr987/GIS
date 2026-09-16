@@ -461,8 +461,9 @@ body {
   position: absolute;
   z-index: 850;
   top: 132px;
-  left: 14px;
-  width: 248px;
+  /* Keep the panel clear of Leaflet-Geoman's left tool rail. */
+  left: 64px;
+  width: min(248px, calc(100% - 78px));
   background: rgba(255, 255, 255, 0.97);
   border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 10px;
@@ -1250,7 +1251,7 @@ body {
   .brand { font-size: 0.92rem; }
   .basemap-control { top: 8px; right: 8px; max-width: 205px; }
   .style-panel { left: 52px; top: 8px; min-width: 220px; }
-  .layer-panel { left: 8px; top: 110px; width: 220px; }
+  .layer-panel { left: 52px; top: 110px; width: min(220px, calc(100% - 60px)); }
   .catalog-panel { width: min(88vw, 300px); }
   .app-workspace:has(.catalog-panel:not(.is-hidden)) .basemap-control { display: none; }
   .import-summary-grid { grid-template-columns: 1fr; }
