@@ -1,0 +1,15 @@
+# Operating system and editor files
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/
+.idea/
+
+# Runtime and diagnostic output
+*.log
+*.tmp
+node_modules/
+
+# User-created GeoCanvas work files may contain private GIS data
+*.gcp.json
+

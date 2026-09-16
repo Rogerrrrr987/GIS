@@ -1,0 +1,82 @@
+/**
+ * GeoCanvas GIS Tool - Local data catalog
+ * Browser security requires the user to choose local files explicitly.
+ */
+
+const CatalogManager = {
+  storageKey: 'geocanvas.catalog.recentFiles',
+  panel: null,
+  recentList: null,
+  fileInput: null,
+
+  init() {
+    this.panel = document.getElementById('catalog-panel');
+    this.recentList = document.getElementById('catalog-recent-files');
+    this.fileInput = document.getElementById('catalog-file-input');
+
+    document.getElementById('btn-toggle-catalog')?.addEventListener('click', () => this.toggle());
+    document.getElementById('btn-close-catalog')?.addEventListener('click', () => this.hide());
+    document.getElementById('btn-catalog-add-file')?.addEventListener('click', () => this.fileInput?.click());
+    this.fileInput?.addEventListener('change', async event => {
+      const files = Array.from(event.target.files || []);
+      if (files.length) {
+        await App.processFiles(files);
+        files.forEach(file => this.addRecent(file.name, '本機檔案'));
+      }
+      event.target.value = '';
+    });
+
+    this.renderRecent();
+  },
+
+  toggle() {
+    this.panel?.classList.toggle('is-hidden');
+  },
+
+  hide() {
+    this.panel?.classList.add('is-hidden');
+  },
+
+  getRecent() {
+    try {
+      const entries = JSON.parse(localStorage.getItem(this.storageKey) || '[]');
+      const recent = Array.isArray(entries) ? entries.filter(item => item.source !== '內建範例') : [];
+      if (recent.length !== entries.length) localStorage.setItem(this.storageKey, JSON.stringify(recent));
+      return recent;
+    } catch {
+      return [];
+    }
+  },
+
+  addRecent(name, source) {
+    const next = [{ name, source, openedAt: Date.now() }, ...this.getRecent().filter(item => item.name !== name)].slice(0, 8);
+    try { localStorage.setItem(this.storageKey, JSON.stringify(next)); } catch { }
+    this.renderRecent();
+  },
+
+  renderRecent() {
+    if (!this.recentList) return;
+    this.recentList.replaceChildren();
+    const recent = this.getRecent();
+    if (!recent.length) {
+      const empty = document.createElement('p');
+      empty.className = 'catalog-empty';
+      empty.textContent = '尚未呼叫任何資料。選擇電腦檔案後會顯示於此。';
+      this.recentList.appendChild(empty);
+      return;
+    }
+
+    recent.forEach(entry => {
+      const button = document.createElement('button');
+      button.className = 'catalog-file';
+      button.title = `重新選擇「${entry.name}」`;
+      // Category A: Static HTML skeleton without dynamic interpolation; values inserted via textContent below
+      button.innerHTML = '<i data-lucide="history"></i><span><strong></strong><small></small></span>';
+      button.querySelector('strong').textContent = entry.name;
+      button.querySelector('small').textContent = entry.source;
+      button.addEventListener('click', () => this.fileInput?.click());
+      this.recentList.appendChild(button);
+    });
+    if (typeof lucide !== 'undefined') lucide.createIcons({ root: this.recentList });
+  }
+};

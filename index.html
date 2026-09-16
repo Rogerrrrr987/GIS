@@ -1,0 +1,1135 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title data-i18n="app.page_title">GeoCanvas - 簡易 GIS 向量繪製與圖資轉換工具</title>
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet Geoman CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.14.2/dist/leaflet-geoman.css" />
+  <!-- Custom App CSS -->
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+  <!-- Top Application Header -->
+  <header class="app-header">
+    <div class="brand">
+      <div class="brand-icon">
+        <i data-lucide="map-pin" style="color: white; width: 20px; height: 20px;"></i>
+      </div>
+      <span data-i18n="app.title">GeoCanvas GIS</span>
+      <span class="brand-badge" data-i18n="app.subtitle">KML · SHP · CSV 向量繪圖</span>
+    </div>
+
+    <div class="header-tools">
+      <div class="dropdown" id="project-dropdown">
+        <button id="project-dropdown-btn" class="btn btn-secondary" title="專案保存、復原與操作紀錄" data-i18n-title="header.project_title">
+          <i data-lucide="shield-check" style="width: 16px; height: 16px;"></i>
+          <span data-i18n="header.project">專案</span>
+          <i data-lucide="chevron-down" style="width: 14px; height: 14px;"></i>
+        </button>
+        <div class="dropdown-content project-menu">
+          <button id="btn-project-save"><i data-lucide="save"></i><span data-i18n="header.save_project">另存專案</span><span class="dropdown-tag">.gcp.json</span></button>
+          <button id="btn-project-open"><i data-lucide="folder-open"></i><span data-i18n="header.open_project">開啟專案</span></button>
+          <div class="divider"></div>
+          <button id="btn-project-undo" disabled><i data-lucide="undo-2"></i><span data-i18n="header.undo">復原</span><span class="project-shortcut">Ctrl+Z</span></button>
+          <button id="btn-project-redo" disabled><i data-lucide="redo-2"></i><span data-i18n="header.redo">重做</span><span class="project-shortcut">Ctrl+Y</span></button>
+        </div>
+        <input id="project-file-input" type="file" accept=".json,.gcp.json,application/json" hidden />
+      </div>
+
+      <!-- Import Button -->
+      <button id="btn-open-import" class="btn btn-primary" title="匯入 KML / SHP / CSV / GeoJSON" data-i18n-title="header.import_data_title">
+        <i data-lucide="upload" style="width: 16px; height: 16px;"></i>
+        <span data-i18n="header.import_data">匯入圖資</span>
+      </button>
+
+      <!-- Export Dropdown -->
+      <div class="dropdown" id="export-dropdown">
+        <button id="export-dropdown-btn" class="btn btn-success">
+          <i data-lucide="download" style="width: 16px; height: 16px;"></i>
+          <span data-i18n="header.export_data">匯出圖資</span>
+          <i data-lucide="chevron-down" style="width: 14px; height: 14px;"></i>
+        </button>
+        <div class="dropdown-content">
+          <button id="export-kml">
+            <span data-i18n="header.export_kml">KML 地球圖資</span>
+            <span class="dropdown-tag">.kml</span>
+          </button>
+          <button id="export-shp">
+            <span data-i18n="header.export_shp">Shapefile 壓縮包</span>
+            <span class="dropdown-tag">.zip</span>
+          </button>
+          <button id="export-csv">
+            <span data-i18n="header.export_csv">CSV (WKT + 經緯度)</span>
+            <span class="dropdown-tag">.csv</span>
+          </button>
+          <div class="divider"></div>
+          <button id="export-geojson">
+            <span data-i18n="header.export_geojson">GeoJSON 標準資料</span>
+            <span class="dropdown-tag">.geojson</span>
+          </button>
+        </div>
+      </div>
+
+      <button id="btn-toggle-layers" class="btn btn-secondary" title="開啟/收合圖層面板" data-i18n-title="header.layers_title">
+        <i data-lucide="layers-3" style="width: 16px; height: 16px;"></i>
+        <span data-i18n="header.layers">圖層</span>
+      </button>
+
+      <button id="btn-toggle-catalog" class="btn btn-secondary" title="開啟/收合資料目錄" data-i18n-title="header.catalog_title">
+        <i data-lucide="folder-tree" style="width: 16px; height: 16px;"></i>
+        <span data-i18n="header.catalog">資料目錄</span>
+      </button>
+
+      <div class="dropdown" id="tools-dropdown">
+        <button id="tools-dropdown-btn" class="btn btn-secondary" title="分析與其他工具" data-i18n-title="header.tools_title">
+          <i data-lucide="sliders-horizontal" style="width: 16px; height: 16px;"></i>
+          <span data-i18n="header.tools">工具</span>
+          <i data-lucide="chevron-down" style="width: 14px; height: 14px;"></i>
+        </button>
+        <div class="dropdown-content tools-menu">
+          <button id="btn-toggle-table"><i data-lucide="table"></i><span data-i18n="header.tool_table">屬性資料表</span></button>
+          <button id="btn-classify"><i data-lucide="bar-chart-2"></i><span data-i18n="header.tool_classify">數值分級</span></button>
+          <button id="btn-geoprocessing"><i data-lucide="box"></i><span data-i18n="header.tool_geoprocessing">空間處理工具箱</span></button>
+          <button id="btn-tgos-locate"><i data-lucide="map-pin-search"></i><span data-i18n="header.tool_tgos">TGOS 地址定位</span></button>
+          <button id="btn-routing"><i data-lucide="navigation"></i><span data-i18n="header.tool_routing">路網分析</span></button>
+          <div class="divider"></div>
+          <button onclick="TopologyManager.checkTopology()"><i data-lucide="shield-alert"></i><span data-i18n="header.tool_topology">檢查圖層拓樸</span></button>
+          <button onclick="SelectionManager.clearSelection()"><i data-lucide="mouse-pointer-2"></i><span data-i18n="header.tool_clear_selection">清除選取</span></button>
+          <div class="divider"></div>
+          <button id="btn-clear-all" class="menu-danger"><i data-lucide="trash-2"></i><span data-i18n="header.tool_clear_all">清空所有圖元</span></button>
+        </div>
+      </div>
+
+      <!-- Language Switcher Dropdown -->
+      <div class="dropdown" id="lang-dropdown">
+        <button id="lang-dropdown-btn" class="btn btn-secondary" title="切換語言 / Switch Language" data-i18n-title="header.language_title">
+          <i data-lucide="globe" style="width: 16px; height: 16px;"></i>
+          <span id="current-lang-label">繁體中文</span>
+          <i data-lucide="chevron-down" style="width: 14px; height: 14px;"></i>
+        </button>
+        <div class="dropdown-content lang-menu">
+          <button id="lang-btn-zh" class="active" onclick="I18n.setLanguage('zh-TW')"><span>繁體中文</span></button>
+          <button id="lang-btn-en" onclick="I18n.setLanguage('en')"><span>English</span></button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Map & Workspace Area -->
+  <main class="app-workspace">
+    <!-- Leaflet Map Container -->
+    <div id="map"></div>
+
+    <!-- Floating Style & Drawing Palette (Beside Geoman Toolbar) -->
+    <div class="floating-panel style-panel" id="style-panel">
+      <div class="panel-heading">
+        <i data-lucide="palette" style="width: 15px; height: 15px;"></i>
+        <span data-i18n="style.title">樣式與選取</span>
+        <span class="panel-selection" id="style-selection-label" data-i18n="style.no_selection">未選取圖元</span>
+      </div>
+      <p class="panel-empty-state" id="style-empty-state" data-i18n="style.empty_hint">選取地圖上的圖元後，可調整樣式或進行操作。</p>
+      
+      <div id="selection-actions" style="display: none; padding: 8px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; gap: 6px; flex-wrap: wrap;">
+        <button class="btn btn-secondary" style="flex: 1 1 45%; padding: 4px; font-size: 0.8rem;" onclick="SelectionManager.selectAll()" title="全選所有圖元" data-i18n="style.select_all" data-i18n-title="style.select_all_title">全選</button>
+        <button class="btn btn-secondary" style="flex: 1 1 45%; padding: 4px; font-size: 0.8rem;" onclick="SelectionManager.invertSelection()" title="反轉選取" data-i18n="style.invert" data-i18n-title="style.invert_title">反轉</button>
+        <div style="flex:1 1 100%;display:flex;gap:5px">
+          <select id="selected-export-format" style="flex:1;padding:4px;font-size:.8rem" title="選取圖元匯出格式" data-i18n-title="style.export_format_title">
+            <option value="geojson">GeoJSON</option><option value="kml">KML</option><option value="shp">SHP</option><option value="csv">CSV</option>
+          </select>
+          <button class="btn btn-secondary" style="padding:4px 8px;font-size:.8rem" onclick="SelectionManager.exportSelected(document.getElementById('selected-export-format').value)" data-i18n="style.export_selected">匯出選取</button>
+        </div>
+        <button class="btn btn-danger-outline" style="flex: 1 1 45%; padding: 4px; font-size: 0.8rem;" onclick="SelectionManager.deleteSelected()"><i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> <span data-i18n="style.delete">刪除</span></button>
+        <div style="flex: 1 1 100%; display: flex; gap: 6px; margin-top: 4px;">
+           <select id="select-location-layer" style="flex: 1; padding: 2px; font-size: 0.8rem;">
+              <!-- filled by JS dynamically -->
+           </select>
+           <button class="btn btn-secondary" style="padding: 2px 6px; font-size: 0.8rem;" onclick="App.triggerSelectByLocation()" data-i18n="style.select_by_location">依位置選取</button>
+        </div>
+      </div>
+      <div style="display:flex;gap:7px;align-items:center;padding:7px 10px;border-bottom:1px solid #e2e8f0;font-size:.78rem">
+        <label><input type="checkbox" id="snap-enabled" checked> <span data-i18n="style.snap">吸附</span></label>
+        <label><span data-i18n="style.tolerance">容差</span> <input type="number" id="snap-distance" value="20" min="1" max="100" style="width:54px"> px</label>
+      </div>
+      
+      <div class="style-controls" id="style-controls" aria-hidden="true">
+      <div class="style-item">
+        <label for="style-point-symbol" data-i18n="style.point_symbol">點符號:</label>
+        <select id="style-point-symbol" title="設定點位(Marker)的符號" data-i18n-title="style.point_symbol_title">
+          <option value="default" selected data-i18n="style.sym_default">預設水滴</option>
+          <option value="circle" data-i18n="style.sym_circle">圓點</option>
+          <option value="square" data-i18n="style.sym_square">方塊</option>
+          <option value="star" data-i18n="style.sym_star">星星</option>
+          <option value="flag" data-i18n="style.sym_flag">旗幟</option>
+        </select>
+      </div>
+      <div class="style-item">
+        <label for="style-stroke-color" data-i18n="style.stroke_color">外框:</label>
+        <input type="color" id="style-stroke-color" value="#2563eb" title="外框顏色" data-i18n-title="style.stroke_color_title" />
+      </div>
+      <div class="style-item">
+        <label for="style-fill-color" data-i18n="style.fill_color">填充:</label>
+        <input type="color" id="style-fill-color" value="#3b82f6" title="填充顏色" data-i18n-title="style.fill_color_title" />
+      </div>
+      <div class="style-item">
+        <label for="style-stroke-width" data-i18n="style.stroke_width">線寬:</label>
+        <select id="style-stroke-width">
+          <option value="0" data-i18n="style.width_none">無 (0 px)</option>
+          <option value="1">1 px</option>
+          <option value="2">2 px</option>
+          <option value="3" selected>3 px</option>
+          <option value="5">5 px</option>
+          <option value="8">8 px</option>
+        </select>
+      </div>
+      <div class="style-item">
+        <label for="style-fill-opacity" data-i18n="style.fill_opacity">透明度:</label>
+        <select id="style-fill-opacity">
+          <option value="0.1">10%</option>
+          <option value="0.25">25%</option>
+          <option value="0.35" selected>35%</option>
+          <option value="0.6">60%</option>
+          <option value="0.9">90%</option>
+        </select>
+      </div>
+      </div>
+    </div>
+
+    <aside class="layer-panel" id="layer-panel" aria-label="圖層面板" data-i18n-aria="layers.title">
+      <div class="layer-panel-header">
+        <div><i data-lucide="layers-3" style="width: 16px; height: 16px;"></i><span data-i18n="layers.title">圖層管理</span></div>
+        <button id="btn-close-layers" class="icon-button" title="收合圖層面板" data-i18n-title="layers.close_title"><i data-lucide="x" style="width: 16px; height: 16px;"></i></button>
+      </div>
+      <div class="layer-panel-toolbar">
+        <button id="btn-add-layer" class="icon-button" title="新增圖層" data-i18n-title="layers.add_layer"><i data-lucide="plus-square" style="width: 16px; height: 16px;"></i></button>
+        <button id="btn-add-group" class="icon-button" title="新增群組" data-i18n-title="layers.add_group"><i data-lucide="folder-plus" style="width: 16px; height: 16px;"></i></button>
+        <div class="layer-search">
+          <i data-lucide="search" style="width: 14px; height: 14px; color: #64748b;"></i>
+          <input type="text" id="layer-search-input" placeholder="搜尋圖層..." data-i18n-placeholder="layers.search_placeholder" />
+        </div>
+      </div>
+      <div class="layer-panel-body" id="layer-tree-container">
+        <!-- Layer Tree will be rendered here by LayerManager -->
+      </div>
+    </aside>
+
+    <aside class="catalog-panel" id="catalog-panel" aria-label="資料目錄" data-i18n-aria="catalog.title">
+      <div class="catalog-header">
+        <div><i data-lucide="folder-tree" style="width: 17px; height: 17px;"></i><span data-i18n="catalog.title">資料目錄</span></div>
+        <button id="btn-close-catalog" class="icon-button" title="收合資料目錄" data-i18n-title="catalog.close_title"><i data-lucide="chevrons-right" style="width: 17px; height: 17px;"></i></button>
+      </div>
+      <div class="catalog-body">
+        <button id="btn-catalog-add-file" class="catalog-add-button">
+          <i data-lucide="folder-open" style="width: 16px; height: 16px;"></i>
+          <span data-i18n="catalog.select_files">選擇電腦檔案</span>
+        </button>
+        <input type="file" id="catalog-file-input" hidden accept=".kml,.kmz,.zip,.csv,.txt,.geojson,.json" multiple />
+
+        <section class="catalog-section">
+          <div class="catalog-section-title"><i data-lucide="clock-3" style="width: 14px; height: 14px;"></i><span data-i18n="catalog.recent_files">最近呼叫</span></div>
+          <div id="catalog-recent-files" class="catalog-file-list"></div>
+        </section>
+
+        <p class="catalog-note"><i data-lucide="shield-check" style="width: 14px; height: 14px;"></i> <span data-i18n="catalog.privacy_note">為保護隱私，請透過「選擇電腦檔案」授權要匯入的檔案。</span></p>
+      </div>
+    </aside>
+
+    <!-- Floating Base Map Selector (Top-right) -->
+    <div class="basemap-control" id="basemap-control">
+      <button class="basemap-trigger" id="btn-toggle-basemap" title="選擇底圖" data-i18n-title="basemap.select_title">
+        <i data-lucide="map" style="width: 15px; height: 15px;"></i>
+        <span data-i18n="basemap.title">底圖</span>
+        <i data-lucide="chevron-down" style="width: 14px; height: 14px;"></i>
+      </button>
+      <div class="basemap-menu" id="basemap-menu">
+        <div class="basemap-menu-title" data-i18n="basemap.select_title">選擇底圖</div>
+      <button class="basemap-btn active" data-layer="nlsc_emap" title="內政部國土測繪中心 臺灣通用版電子地圖 (http://maps.nlsc.gov.tw/S_Maps/wmts)" data-i18n-title="basemap.nlsc_emap_title">
+        <i data-lucide="map-pin" style="width: 14px; height: 14px;"></i>
+        <span data-i18n="basemap.nlsc_emap">臺灣通用圖 (NLSC)</span>
+      </button>
+      <button class="basemap-btn" data-layer="nlsc_photo" title="國土測繪中心 正射影像航照圖 (PHOTO2)" data-i18n-title="basemap.nlsc_photo_title">
+        <i data-lucide="camera" style="width: 14px; height: 14px;"></i>
+        <span data-i18n="basemap.nlsc_photo">國土航照</span>
+      </button>
+      <button class="basemap-btn" data-layer="nlsc_mix" title="國土測繪中心 航照混合圖 (PHOTO_MIX)" data-i18n-title="basemap.nlsc_mix_title">
+        <i data-lucide="layers" style="width: 14px; height: 14px;"></i>
+        <span data-i18n="basemap.nlsc_mix">航照混合</span>
+      </button>
+      <button class="basemap-btn" data-layer="osm" title="OpenStreetMap 標準街圖" data-i18n-title="basemap.osm_title">
+        <i data-lucide="map" style="width: 14px; height: 14px;"></i>
+        <span data-i18n="basemap.osm">OSM街圖</span>
+      </button>
+      <button class="basemap-btn" data-layer="satellite" title="ESRI 全球衛星高解析影像" data-i18n-title="basemap.satellite_title">
+        <i data-lucide="globe" style="width: 14px; height: 14px;"></i>
+        <span data-i18n="basemap.satellite">ESRI衛星</span>
+      </button>
+      <button class="basemap-btn" data-layer="topo" title="地形等高線圖" data-i18n-title="basemap.topo_title">
+        <i data-lucide="mountain" style="width: 14px; height: 14px;"></i>
+        <span data-i18n="basemap.topo">地形圖</span>
+      </button>
+      <div class="basemap-divider"></div>
+      <button class="basemap-btn overlay-btn" id="btn-toggle-cadastral" title="疊加國土測繪中心地籍圖 (LAND_OPENDATA)" data-i18n-title="basemap.cadastral_title">
+        <i data-lucide="grid" style="width: 14px; height: 14px;"></i>
+        <span data-i18n="basemap.cadastral">疊加地籍圖</span>
+      </button>
+      <button class="basemap-btn" id="btn-open-custom-wmts" title="檢視與設定 WMTS 服務 URL" data-i18n-title="basemap.custom_wmts_title">
+        <i data-lucide="settings-2" style="width: 14px; height: 14px;"></i>
+        <span data-i18n="basemap.custom_wmts">自訂WMTS</span>
+      </button>
+      </div>
+    </div>
+
+    <!-- Bottom Attribute Table Drawer -->
+    <div class="attribute-drawer" id="attribute-drawer">
+      <div class="drawer-header">
+        <div class="drawer-title">
+          <i data-lucide="layers" style="width: 18px; height: 18px; color: #2563eb;"></i>
+          <span data-i18n="table.title">圖層屬性資料表</span>
+          <span class="dropdown-tag" id="drawer-feature-count">0 個圖元</span>
+        </div>
+        <div class="drawer-tools">
+          <input type="text" id="table-search-input" class="table-search" placeholder="搜尋名稱、屬性..." data-i18n-placeholder="table.search_placeholder" />
+          <label style="font-size:.78rem;white-space:nowrap"><input type="checkbox" id="table-selected-only"> <span data-i18n="table.selected_only">僅顯示選取</span></label>
+          <button class="btn btn-secondary" style="padding: 4px 10px;" onclick="TableManager.selectFiltered()">
+            <i data-lucide="check-square" style="width: 14px; height: 14px;"></i>
+            <span data-i18n="table.select_filtered">選取過濾結果</span>
+          </button>
+          <button class="btn btn-secondary" style="padding: 4px 10px;" onclick="TableManager.addNewColumn()">
+            <i data-lucide="plus" style="width: 14px; height: 14px;"></i>
+            <span data-i18n="table.add_column">新增屬性欄位</span>
+          </button>
+          <button class="btn btn-secondary" id="btn-open-field-calc" style="padding: 4px 10px;" onclick="FieldCalculator.openModal()" title="開啟欄位計算器" data-i18n-title="table.field_calculator_title">
+            <i data-lucide="calculator" style="width: 14px; height: 14px;"></i>
+            <span data-i18n="table.field_calculator">欄位計算器</span>
+          </button>
+          <button class="btn btn-secondary" id="btn-update-geometry-fields" style="padding: 4px 10px;" onclick="FieldCalculator.updateGeometryColumnsPrompt()" title="批次建立或更新幾何屬性欄位" data-i18n-title="table.update_geometry_title">
+            <i data-lucide="sigma" style="width: 14px; height: 14px;"></i>
+            <span data-i18n="table.update_geometry">更新幾何欄位</span>
+          </button>
+          <button class="btn btn-secondary" id="btn-table-save-selected" style="padding: 4px 10px;" onclick="GeoprocessingManager.promptSaveSelected()" title="將目前選取圖元複製另存為新圖層" data-i18n-title="table.save_selected_title">
+            <i data-lucide="file-plus" style="width: 14px; height: 14px;"></i>
+            <span data-i18n="table.save_selected">另存選取圖元</span>
+          </button>
+          <button id="btn-close-drawer" class="btn btn-secondary" style="padding: 4px 8px;" title="收合抽屜" data-i18n-title="table.close_drawer">
+            <i data-lucide="chevron-down" style="width: 16px; height: 16px;"></i>
+          </button>
+        </div>
+      </div>
+      <div id="attribute-query-bar" style="display:flex;gap:6px;align-items:center;padding:6px 12px;border-bottom:1px solid #e2e8f0;background:#f8fafc;flex-wrap:wrap">
+        <strong style="font-size:.78rem" data-i18n="table.query_title">屬性查詢</strong>
+        <select id="query-field-a"><option value="" data-i18n="table.field_a">欄位 A</option></select>
+        <select id="query-operator-a"><option value="contains" data-i18n="table.contains">包含</option><option value="eq" data-i18n="table.equals">等於</option><option value="neq" data-i18n="table.not_equals">不等於</option><option value="gt" data-i18n="table.greater_than">大於</option><option value="lt" data-i18n="table.less_than">小於</option></select>
+        <input id="query-value-a" placeholder="值 A" style="width:100px" data-i18n-placeholder="table.value_a_placeholder">
+        <select id="query-join"><option value="and">AND</option><option value="or">OR</option></select>
+        <select id="query-field-b"><option value="" data-i18n="table.field_b">欄位 B（選填）</option></select>
+        <select id="query-operator-b"><option value="contains" data-i18n="table.contains">包含</option><option value="eq" data-i18n="table.equals">等於</option><option value="neq" data-i18n="table.not_equals">不等於</option><option value="gt" data-i18n="table.greater_than">大於</option><option value="lt" data-i18n="table.less_than">小於</option></select>
+        <input id="query-value-b" placeholder="值 B" style="width:100px" data-i18n-placeholder="table.value_b_placeholder">
+        <button class="btn btn-secondary" style="padding:4px 9px" onclick="TableManager.applyQuery()" data-i18n="table.apply">套用</button>
+        <button class="btn btn-secondary" style="padding:4px 9px" onclick="TableManager.clearQuery()" data-i18n="table.clear">清除</button>
+      </div>
+      <div class="drawer-body">
+        <table class="attr-table">
+          <thead id="attribute-table-header"></thead>
+          <tbody id="attribute-table-body"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- Bottom Status Bar -->
+  <footer class="app-statusbar">
+    <div class="status-section">
+      <span class="status-badge" id="status-coords">經緯度: 23.850000, 120.950000</span>
+      <span class="status-badge" id="status-zoom">縮放級別: 8</span>
+    </div>
+    <div class="status-section">
+      <span class="status-badge" id="status-feature-count">圖元總數: 0</span>
+      <button class="save-state is-saved" id="status-save-state" type="button" title="點擊另存專案" data-i18n-title="statusbar.save_title">
+        <i data-lucide="shield-check"></i><span data-i18n="statusbar.saved">已保存</span>
+      </button>
+      <span style="color: #64748b;" data-i18n="statusbar.crs">坐標系統: WGS84 (EPSG:4326)</span>
+    </div>
+  </footer>
+
+  <!-- Workspace Recovery Dialog -->
+  <div class="modal-overlay" id="layer-editor-modal">
+    <div class="modal-card" style="max-width:440px">
+      <div class="modal-header"><h3 id="layer-editor-title" data-i18n="modal.layer_editor_add">新增圖層</h3><button class="modal-close" id="btn-close-layer-editor">&times;</button></div>
+      <div class="modal-body">
+        <label style="display:block;margin-bottom:12px"><span data-i18n="modal.layer_name">名稱</span>
+          <input id="layer-editor-name" type="text" style="width:100%;margin-top:5px;padding:8px" maxlength="100">
+        </label>
+        <div id="layer-editor-options">
+          <label style="display:block;margin-bottom:12px"><span data-i18n="modal.geom_type">幾何類型</span>
+            <select id="layer-editor-geometry" style="width:100%;margin-top:5px;padding:8px"><option value="any" data-i18n="modal.geom_any">混合／不限</option><option value="Point" data-i18n="modal.geom_point">點</option><option value="Line" data-i18n="modal.geom_line">線</option><option value="Polygon" data-i18n="modal.geom_polygon">面</option></select>
+          </label>
+          <label style="display:block"><span data-i18n="modal.group">群組</span>
+            <select id="layer-editor-group" style="width:100%;margin-top:5px;padding:8px"></select>
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-secondary" id="btn-cancel-layer-editor" data-i18n="common.cancel">取消</button><button class="btn btn-primary" id="btn-save-layer-editor" data-i18n="common.create">建立</button></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="recovery-modal">
+    <div class="modal-card recovery-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="history" style="color: #d97706; width: 20px; height: 20px;"></i>
+          <h3 data-i18n="modal.recovery_title">發現上次工作備份</h3>
+        </div>
+      </div>
+      <div class="modal-body">
+        <p id="recovery-summary" class="recovery-summary"></p>
+        <div class="recovery-notice" data-i18n="modal.recovery_notice">備份不包含 TGOS APIKey。選擇捨棄後，仍可從先前下載的專案檔開啟資料。</div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-recovery-discard" data-i18n="modal.discard_backup">捨棄備份</button>
+        <button class="btn btn-primary" id="btn-recovery-restore" data-i18n="modal.restore_session">復原工作</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Modal Dialog -->
+  <div class="modal-overlay" id="import-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="file-up" style="color: #2563eb; width: 20px; height: 20px;"></i>
+          <h3 data-i18n="modal.import_title">匯入空間圖資檔案</h3>
+        </div>
+        <button class="modal-close" id="btn-close-import">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Drag & Drop Zone -->
+        <div class="dropzone" id="dropzone">
+          <i data-lucide="upload-cloud" class="dropzone-icon"></i>
+          <p style="font-weight: 600; color: #1e293b;" data-i18n="modal.dropzone_text">點擊此處選取檔案，或將檔案拖曳至此</p>
+          <p class="dropzone-hint" data-i18n="modal.dropzone_hint">亦可直接將檔案拖曳至地圖任意位置進行載入</p>
+          <div class="format-tags">
+            <span class="format-tag">.kml / .kmz</span>
+            <span class="format-tag" data-i18n="modal.import_shp_zip">.zip (SHP壓縮檔)</span>
+            <span class="format-tag" data-i18n="modal.import_csv_wkt">.csv (WKT或經緯度)</span>
+            <span class="format-tag">.geojson</span>
+          </div>
+          <input type="file" id="file-input" style="display: none;" accept=".kml,.kmz,.zip,.csv,.txt,.geojson,.json" multiple />
+        </div>
+
+        <div style="margin-top: 14px; font-size: 0.8rem; color: #64748b; line-height: 1.5;">
+          <p><strong data-i18n="modal.import_format_notes_title">格式說明與提示：</strong></p>
+          <ul style="margin-left: 18px; margin-top: 4px;">
+            <li data-i18n-html="modal.import_kml_note"><strong>KML</strong>: 支援 Google Earth 標準標籤、折線、多邊形與 ExtendedData 欄位。</li>
+            <li data-i18n-html="modal.import_shp_note"><strong>SHP</strong>: 請將 <code>.shp</code>, <code>.shx</code>, <code>.dbf</code> 封裝為 <code>.zip</code> 上傳。</li>
+            <li data-i18n-html="modal.import_csv_note"><strong>CSV</strong>: 自動偵測 <code>wkt</code> / <code>geometry</code> 欄位，或經緯度欄位（如 <code>lat, lng, x, y</code>）。</li>
+          </ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="document.getElementById('import-modal').classList.remove('active')" data-i18n="common.close">關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Import Preview Modal -->
+  <div class="modal-overlay" id="import-preview-modal">
+    <div class="modal-card import-preview-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="scan-search" style="color: #2563eb; width: 20px; height: 20px;"></i>
+          <h3 data-i18n="modal.import_preview_title">匯入前檢查</h3>
+        </div>
+        <button class="modal-close" id="btn-close-import-preview">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="import-file-name" id="import-preview-filename"></div>
+        <div class="import-summary-grid" id="import-preview-summary"></div>
+        <div class="import-warning" id="import-preview-warning" hidden></div>
+        <p class="import-preview-note" data-i18n="modal.import_preview_note">確認後會建立於目前的「工作圖層」。資料會以 WGS84（EPSG:4326）顯示。</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-import-preview" data-i18n="common.cancel">取消</button>
+        <button class="btn btn-primary" id="btn-confirm-import" data-i18n="modal.confirm_import">匯入圖資</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Routing Point File Import Preview Modal -->
+  <div class="modal-overlay" id="routing-shp-preview-modal">
+    <div class="modal-card routing-shp-preview-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="map-pinned" style="color: #2563eb; width: 20px; height: 20px;"></i>
+          <h3 data-i18n="modal.routing_shp_title">路網點位檔案匯入檢查</h3>
+        </div>
+        <button class="modal-close" id="btn-close-routing-shp-preview" aria-label="關閉匯入檢查" data-i18n-aria="common.close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="import-file-name" id="routing-shp-preview-filename"></div>
+        <div class="import-summary-grid" id="routing-shp-preview-summary"></div>
+        <div class="routing-shp-options" style="grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));">
+          <label>
+            <span data-i18n="modal.name_field">名稱欄位</span>
+            <select id="routing-shp-name-field"></select>
+          </label>
+          <label>
+            <span data-i18n="modal.order_field">順序 / 序號欄位</span>
+            <select id="routing-shp-order-field"></select>
+          </label>
+          <label>
+            <span data-i18n="modal.role_field">角色欄位 (選填)</span>
+            <select id="routing-shp-role-field"></select>
+          </label>
+          <label>
+            <span data-i18n="modal.import_mode">加入方式</span>
+            <select id="routing-shp-import-mode">
+              <option value="replace" selected data-i18n="modal.mode_replace">取代目前點位</option>
+              <option value="append" data-i18n="modal.mode_append">接續目前點位</option>
+            </select>
+          </label>
+        </div>
+        <div id="routing-shp-role-summary" style="margin: 6px 0; font-size: 0.78rem; color: #334155; font-weight: 500;"></div>
+        <div id="routing-shp-conflict-container" style="display: none; padding: 8px; margin: 6px 0; background: #fffbeb; border: 1px solid #fde68a; border-radius: 6px; font-size: 0.76rem; color: #92400e;">
+          <label style="display: block; font-weight: 600; margin-bottom: 4px;" data-i18n="modal.conflict_strategy_label">起終點角色衝突處理策略：</label>
+          <select id="routing-shp-conflict-resolution" style="width: 100%; padding: 4px 6px; font-size: 0.76rem; border: 1px solid #cbd5e1; border-radius: 4px;">
+            <option value="keep-first" selected data-i18n="modal.conflict_keep_first">保留第一個起點/終點，其餘降為停靠點</option>
+            <option value="keep-last" data-i18n="modal.conflict_keep_last">保留最後一個起點/終點，其餘降為停靠點</option>
+          </select>
+        </div>
+        <div id="routing-shp-overflow-container" style="display: none; padding: 8px; margin: 6px 0; background: #fff7ed; border: 1px solid #fdba74; border-radius: 6px; font-size: 0.76rem; color: #9a3412;">
+          <label style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
+            <input type="checkbox" id="routing-shp-truncate-check" />
+            <span data-i18n="modal.overflow_checkbox">匯入點數超過 200 點上限：同意僅載入前 200 點（若未勾選則取消匯入）</span>
+          </label>
+        </div>
+        <div class="import-warning" id="routing-shp-preview-warning" hidden></div>
+        <div class="routing-shp-preview-list" id="routing-shp-preview-list"></div>
+        <p class="import-preview-note" data-i18n="modal.routing_shp_note">僅匯入 Point / MultiPoint 圖徵；非點幾何（線段/多邊形）將明確略過，絕不靜默轉為中心點。確認前不影響既有點位。</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-routing-shp-preview" data-i18n="common.cancel">取消</button>
+        <button class="btn btn-primary" id="btn-confirm-routing-shp-import" data-i18n="modal.add_to_routing">加入路網分析</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- OSRM External Transmission Consent Modal -->
+  <div class="modal-overlay" id="routing-consent-modal">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="shield-alert" style="color: #2563eb; width: 22px; height: 22px;"></i>
+          <h3 data-i18n="modal.consent_title">外部服務資料傳輸確認</h3>
+        </div>
+        <button class="modal-close" onclick="RoutingManager.rejectOsrmConsent()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 0.85rem; color: #334155; line-height: 1.5; margin-bottom: 12px;" data-i18n="modal.consent_desc">
+          系統即將向外部 OSRM 服務發送分析點位的<strong>經緯度座標</strong>以計算道路路徑。不會傳送任何屬性欄位或本機檔案。
+        </p>
+        <div class="import-summary-grid" style="margin-bottom: 12px;">
+          <div class="import-summary-item">
+            <span data-i18n="modal.target_service_url">目標服務網址</span>
+            <strong id="routing-consent-url" style="word-break: break-all; font-size: 0.8rem;"></strong>
+          </div>
+          <div class="import-summary-item">
+            <span data-i18n="modal.transmit_count">傳送點位數量</span>
+            <strong id="routing-consent-count"></strong>
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; margin-top: 8px;">
+          <input type="checkbox" id="routing-consent-remember" />
+          <label for="routing-consent-remember" style="font-size: 0.8rem; color: #475569; cursor: pointer;" data-i18n="modal.remember_consent">
+            在此瀏覽器記住對此服務網址的授權（不寫入分享專案檔）
+          </label>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="RoutingManager.rejectOsrmConsent()" data-i18n="common.cancel">取消</button>
+        <button class="btn btn-primary" onclick="RoutingManager.approveOsrmConsent()" data-i18n="modal.consent_approve">同意並送出</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Classify Modal Dialog -->
+  <div class="modal-overlay" id="classify-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="bar-chart-2" style="color: #2563eb; width: 20px; height: 20px;"></i>
+          <h3 data-i18n="modal.classify_title">數值分級 (Graduated Colors)</h3>
+        </div>
+        <button class="modal-close" id="btn-close-classify">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom: 12px;">
+          <label for="classify-field" style="display: block; font-weight: 500; margin-bottom: 6px;" data-i18n="modal.classify_field_label">請選擇要進行分級的數值欄位：</label>
+          <select id="classify-field" style="width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px;"></select>
+        </div>
+        <p style="font-size: 0.85rem; color: #64748b; line-height: 1.5;" data-i18n="modal.classify_desc">
+          系統將依據您選擇的欄位數值，自動採用 <strong>等距分級法 (Equal Interval)</strong>，將圖元套用 5 階紅色漸層色彩 (由淺至深)。
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-clear-classify" style="margin-right: auto;" data-i18n="modal.clear_classify">清除分級</button>
+        <button class="btn btn-secondary" onclick="document.getElementById('classify-modal').classList.remove('active')" data-i18n="common.cancel">取消</button>
+        <button class="btn btn-primary" id="btn-apply-classify" data-i18n="modal.apply_classify">套用分級</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Field Calculator Modal Dialog -->
+  <div class="modal-overlay" id="field-calculator-modal">
+    <div class="modal-card calc-modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="calculator" style="color: #2563eb; width: 20px; height: 20px;"></i>
+          <h3 data-i18n="calc.title">欄位計算器 (Field Calculator)</h3>
+        </div>
+        <button class="modal-close" id="btn-calc-close" type="button">&times;</button>
+      </div>
+      <div class="modal-body calc-modal-body">
+        <div class="calc-target-row">
+          <div class="calc-field-group">
+            <label for="calc-target-field" data-i18n="calc.target_field">目標欄位：</label>
+            <select id="calc-target-field" class="calc-select"></select>
+          </div>
+          <div class="calc-new-field-group">
+            <label><input type="checkbox" id="calc-new-field-check"> <span data-i18n="calc.new_field">建立新欄位：</span></label>
+            <input type="text" id="calc-new-field-name" placeholder="輸入新欄位名稱" data-i18n-placeholder="calc.new_field_placeholder" disabled />
+          </div>
+          <div class="calc-scope-group">
+            <label for="calc-scope" data-i18n="calc.scope">計算範圍：</label>
+            <select id="calc-scope" class="calc-select">
+              <option value="all" data-i18n="calc.scope_all">全部圖元</option>
+              <option value="selected" data-i18n="calc.scope_selected">目前選取圖元</option>
+              <option value="filtered" data-i18n="calc.scope_filtered">目前過濾結果</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="calc-builder-layout">
+          <div class="calc-helpers-sidebar">
+            <label data-i18n="calc.available_fields">可用欄位 (點擊插入)：</label>
+            <div id="calc-fields-list" class="calc-chips-container"></div>
+
+            <label style="margin-top: 8px;" data-i18n="calc.geom_vars">幾何變數：</label>
+            <div class="calc-chips-container">
+              <button type="button" class="calc-chip calc-geom-chip" onclick="FieldCalculator.insertIntoExpression('$area_m2')" data-i18n="calc.geom_area_m2">$area_m2 (面積 m²)</button>
+              <button type="button" class="calc-chip calc-geom-chip" onclick="FieldCalculator.insertIntoExpression('$area_ha')" data-i18n="calc.geom_area_ha">$area_ha (面積公頃)</button>
+              <button type="button" class="calc-chip calc-geom-chip" onclick="FieldCalculator.insertIntoExpression('$length_m')" data-i18n="calc.geom_length_m">$length_m (長度 m)</button>
+              <button type="button" class="calc-chip calc-geom-chip" onclick="FieldCalculator.insertIntoExpression('$length_km')" data-i18n="calc.geom_length_km">$length_km (長度 km)</button>
+              <button type="button" class="calc-chip calc-geom-chip" onclick="FieldCalculator.insertIntoExpression('$perimeter_m')" data-i18n="calc.geom_perimeter_m">$perimeter_m (周長 m)</button>
+              <button type="button" class="calc-chip calc-geom-chip" onclick="FieldCalculator.insertIntoExpression('$x')" data-i18n="calc.geom_x">$x (經度)</button>
+              <button type="button" class="calc-chip calc-geom-chip" onclick="FieldCalculator.insertIntoExpression('$y')" data-i18n="calc.geom_y">$y (緯度)</button>
+              <button type="button" class="calc-chip calc-geom-chip" onclick="FieldCalculator.insertIntoExpression('$centroid_x')">$centroid_x</button>
+              <button type="button" class="calc-chip calc-geom-chip" onclick="FieldCalculator.insertIntoExpression('$centroid_y')">$centroid_y</button>
+            </div>
+          </div>
+
+          <div class="calc-editor-main">
+            <div class="calc-quick-ops">
+              <button type="button" class="btn btn-secondary btn-xs" onclick="FieldCalculator.insertIntoExpression(' + ')">+</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="FieldCalculator.insertIntoExpression(' - ')">-</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="FieldCalculator.insertIntoExpression(' * ')">*</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="FieldCalculator.insertIntoExpression(' / ')">/</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="FieldCalculator.insertIntoExpression('(')">(</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="FieldCalculator.insertIntoExpression(')')">)</button>
+              <span class="calc-sep">|</span>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="FieldCalculator.insertIntoExpression('round(, 2)')">round()</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="FieldCalculator.insertIntoExpression('abs()')">abs()</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="FieldCalculator.insertIntoExpression('coalesce(, 0)')">coalesce()</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="FieldCalculator.insertIntoExpression('trim()')">trim()</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="FieldCalculator.insertIntoExpression('upper()')">upper()</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="FieldCalculator.insertIntoExpression('lower()')">lower()</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="FieldCalculator.insertIntoExpression('substring(, 1, 5)')">substr()</button>
+              <button type="button" class="btn btn-secondary btn-xs" onclick="FieldCalculator.insertIntoExpression('concat(, )')">concat()</button>
+            </div>
+
+            <label for="calc-expression-input" style="font-weight: 600; font-size: 0.8rem;" data-i18n="calc.formula_label">表達式公式：</label>
+            <textarea id="calc-expression-input" class="calc-textarea" placeholder="例如：[pop] / $area_ha 或 round($area_m2, 1) 或 upper(trim([name])) + '_標註'" data-i18n-placeholder="calc.formula_placeholder"></textarea>
+
+            <div class="calc-preview-section">
+              <div class="calc-preview-header">
+                <span id="calc-preview-stats" data-i18n="calc.preview_hint">請輸入公式並點擊「預覽前 10 筆」進行檢查。</span>
+                <button type="button" class="btn btn-secondary btn-xs" id="btn-calc-preview" data-i18n="calc.preview_btn">預覽前 10 筆</button>
+              </div>
+              <div class="calc-preview-table-container">
+                <table class="calc-preview-table">
+                  <thead>
+                    <tr><th data-i18n="calc.col_feat_name">圖元名稱</th><th data-i18n="calc.col_orig_val">原數值</th><th data-i18n="calc.col_calc_val">計算後數值</th><th data-i18n="calc.col_status">狀態</th></tr>
+                  </thead>
+                  <tbody id="calc-preview-tbody"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-calc-cancel" type="button" data-i18n="common.cancel">取消</button>
+        <button class="btn btn-primary" id="btn-calc-execute" type="button" disabled data-i18n="calc.execute">確認寫入圖層</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Legend Panel -->
+  <div id="legend-panel" class="floating-panel" style="display: none; bottom: 35px; right: 14px; top: auto; min-width: 150px;">
+    <h4 style="margin: 0 0 8px 0; font-size: 0.9rem; color: #1e293b;" id="legend-title" data-i18n="header.tool_classify">數值分級</h4>
+    <div id="legend-content"></div>
+  </div>
+
+  <!-- Custom WMTS Service Modal -->
+  <div class="modal-overlay" id="wmts-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="layers" style="color: #2563eb; width: 20px; height: 20px;"></i>
+          <h3 data-i18n="modal.wmts_title">WMTS 圖磚服務設定與檢視</h3>
+        </div>
+        <button class="modal-close" id="btn-close-wmts">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom: 12px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.84rem;" data-i18n="modal.wmts_preset_label">內政部國土測繪中心 (NLSC) 預設圖層：</label>
+          <select id="wmts-preset-select" style="width: 100%; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;">
+            <option value="EMAP" selected data-i18n="modal.wmts_opt_emap">EMAP - 臺灣通用版電子地圖 (彩色)</option>
+            <option value="PHOTO2" data-i18n="modal.wmts_opt_photo">PHOTO2 - 國土測繪正射影像航照圖</option>
+            <option value="PHOTO_MIX" data-i18n="modal.wmts_opt_photo_mix">PHOTO_MIX - 正射影像與電子地圖混合圖</option>
+            <option value="LAND_OPENDATA" data-i18n="modal.wmts_opt_land">LAND_OPENDATA - 國土測繪地籍圖 (透明疊加)</option>
+            <option value="B5000" data-i18n="modal.wmts_opt_b5000">B5000 - 1/5000 圖名圖幅圖</option>
+          </select>
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.84rem;" data-i18n="modal.wmts_base_url_label">WMTS 服務基底網址 (Base URL)：</label>
+          <input type="text" id="wmts-base-url" value="http://maps.nlsc.gov.tw/S_Maps/wmts" style="width: 100%; padding: 6px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem; font-family: monospace;" />
+        </div>
+
+        <div style="margin-bottom: 12px;">
+          <label style="display: block; font-weight: 600; margin-bottom: 4px; font-size: 0.84rem;" data-i18n="modal.wmts_template_label">即時產生之 Leaflet WMTS URL 樣板：</label>
+          <textarea id="wmts-generated-url" rows="3" readonly style="width: 100%; padding: 6px 10px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 6px; font-size: 0.76rem; font-family: monospace; resize: none; color: #334155;"></textarea>
+        </div>
+
+        <div style="font-size: 0.78rem; color: #64748b; line-height: 1.4; background: #f1f5f9; padding: 8px 12px; border-radius: 6px;" data-i18n="modal.wmts_hint">
+          ℹ️ 本工具支援 OGC 標準 WMTS 規範，已原生接入 <code>http://maps.nlsc.gov.tw/S_Maps/wmts</code>，點選右上角底圖按鈕即可切換。您亦可於此處切換不同圖層或套用自訂 WMTS 伺服器。
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-cancel-wmts" data-i18n="common.close">關閉</button>
+        <button class="btn btn-primary" id="btn-apply-wmts" data-i18n="modal.apply_as_basemap">套用為當前底圖</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Routing Panel (P2 Multi-point Route Analysis) -->
+  <div id="routing-panel" class="floating-panel routing-panel" style="display: none;">
+    <div class="routing-header">
+      <h3>
+        <i data-lucide="route" style="width: 18px; height: 18px; color: #0284c7;"></i>
+        <span data-i18n="routing.title">多點最佳路徑</span>
+      </h3>
+      <button class="modal-close" onclick="RoutingManager.toggle()" aria-label="關閉路網分析" data-i18n-aria="routing.close_title">&times;</button>
+    </div>
+    <div id="routing-status" class="routing-status" data-i18n="routing.status_default">在地圖上依序加入起點、停靠點與終點。</div>
+
+    <div class="routing-accordion">
+      <!-- Section 1: 點位清單 (Stops) -->
+      <div class="routing-accordion-item is-open" id="routing-acc-stops">
+        <button class="routing-accordion-header" type="button" onclick="RoutingManager.toggleAccordion('stops')">
+          <div class="routing-acc-title">
+            <i data-lucide="map-pin" style="color: #2563eb; width: 16px; height: 16px;"></i>
+            <span data-i18n="routing.stops_section">分析點位</span>
+            <span id="routing-stop-count" class="routing-count-badge">0 / 200</span>
+          </div>
+          <i data-lucide="chevron-down" class="routing-acc-icon"></i>
+        </button>
+        <div class="routing-accordion-content" id="routing-content-stops">
+            <button id="btn-routing-fix-start-end" class="btn btn-secondary btn-xs" type="button" onclick="RoutingManager.normalizeStartEndPositions()" title="將起點移至首位，終點移至末位" data-i18n-title="routing.fix_start_end">
+              <i data-lucide="arrow-up-down" style="width: 13px; height: 13px;"></i><span data-i18n="routing.fix_start_end">將起終點移至首尾</span>
+            </button>
+            <button class="btn btn-secondary btn-xs" type="button" onclick="RoutingManager.reversePoints()" title="反轉點位順序" data-i18n-title="routing.reverse_order">
+              <i data-lucide="arrow-down-up" style="width: 13px; height: 13px;"></i><span data-i18n="routing.reverse_order">反轉順序</span>
+            </button>
+            <button class="btn btn-secondary btn-xs" type="button" onclick="RoutingManager.removeDuplicatePoints()" title="移除1公尺內重複點位" data-i18n-title="routing.remove_duplicates">
+              <i data-lucide="copy-x" style="width: 13px; height: 13px;"></i><span data-i18n="routing.remove_duplicates">移除重複點</span>
+            </button>
+            <button class="btn btn-secondary btn-xs" type="button" onclick="RoutingManager.clearPoints()" title="清除全部點位" data-i18n-title="routing.clear_points">
+              <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i><span data-i18n="routing.clear_points">清空點位</span>
+            </button>
+          <div class="routing-import-row">
+            <button id="btn-routing-import-file" class="btn btn-secondary btn-xs" type="button" onclick="RoutingManager.openPointFile()">
+              <i data-lucide="file-input" style="width: 13px; height: 13px;"></i><span data-i18n="routing.import_points">匯入點位 (SHP / KML / KMZ / GeoJSON / CSV)</span>
+            </button>
+            <input id="routing-point-file-input" type="file" accept=".zip,.kml,.kmz,.geojson,.json,.csv,.txt" hidden />
+          </div>
+          <div id="routing-stop-list" class="routing-stop-list">
+            <div class="routing-empty" data-i18n="routing.empty_stops">尚未加入停靠點（點擊地圖或匯入檔案）</div>
+          </div>
+          <div id="routing-validation-summary" class="routing-validation-summary" hidden></div>
+          <div class="routing-stops-footer-action">
+            <button id="btn-routing-undo" class="btn btn-secondary btn-xs" type="button" onclick="RoutingManager.undoLastPoint()" disabled>
+              <i data-lucide="undo-2" style="width: 13px; height: 13px;"></i><span data-i18n="routing.undo_point">撤銷一點</span>
+            </button>
+            <button id="btn-routing-validate" class="btn btn-secondary btn-xs" type="button" onclick="RoutingManager.validatePoints()" disabled>
+              <i data-lucide="scan-search" style="width: 13px; height: 13px;"></i><span data-i18n="routing.validate_snapping">道路吸附與可達性檢查</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2: 點屏障 (Barriers) -->
+      <div class="routing-accordion-item" id="routing-acc-barriers">
+        <button class="routing-accordion-header" type="button" onclick="RoutingManager.toggleAccordion('barriers')">
+          <div class="routing-acc-title">
+            <i data-lucide="shield-alert" style="color: #ea580c; width: 16px; height: 16px;"></i>
+            <span data-i18n="routing.barriers_section">圓形屏障 (本機避障)</span>
+            <span id="routing-barrier-count" class="routing-count-badge">0 / 20</span>
+          </div>
+          <i data-lucide="chevron-down" class="routing-acc-icon"></i>
+        </button>
+        <div class="routing-accordion-content" id="routing-content-barriers">
+          <div class="routing-barrier-controls">
+            <label class="routing-inline-label">
+              <span data-i18n="routing.default_radius">預設半徑:</span>
+              <select id="routing-barrier-radius" aria-label="屏障半徑" data-i18n-aria="routing.barrier_radius_aria">
+                <option value="50" data-i18n="routing.radius_50m">50 公尺</option>
+                <option value="100" selected data-i18n="routing.radius_100m">100 公尺</option>
+                <option value="250" data-i18n="routing.radius_250m">250 公尺</option>
+                <option value="500" data-i18n="routing.radius_500m">500 公尺</option>
+                <option value="1000" data-i18n="routing.radius_1km">1 公里</option>
+              </select>
+            </label>
+            <button id="btn-routing-add-barrier" class="btn btn-secondary btn-xs" type="button" onclick="RoutingManager.toggleBarrierMode()">
+              <i data-lucide="shield-plus" style="width: 13px; height: 13px;"></i><span data-i18n="routing.add_barrier">新增屏障</span>
+            </button>
+          </div>
+          <div id="routing-barrier-list" class="routing-barrier-list">
+            <div class="routing-empty" data-i18n="routing.empty_barriers">尚未加入屏障。啟用「新增屏障」後點擊地圖加入。</div>
+          </div>
+          <p class="routing-barrier-note">
+            <i data-lucide="info" style="width: 12px; height: 12px; flex: 0 0 auto;"></i>
+            <span data-i18n="routing.barrier_note">屏障採用 Turf 真實圓形多邊形幾何相交檢驗。若衝突可嘗試避障繞行。</span>
+          </p>
+          <div id="routing-barrier-detour-container" style="padding: 0 10px 8px;" hidden>
+            <button id="btn-routing-detour" class="btn btn-warning btn-xs" style="width: 100%; justify-content: center;" type="button" onclick="RoutingManager.replanWithDetour()">
+              <i data-lucide="split" style="width: 13px; height: 13px;"></i><span data-i18n="routing.attempt_detour">嘗試屏障避障重新規劃</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3: 設定 (Settings) -->
+      <div class="routing-accordion-item" id="routing-acc-settings">
+        <button class="routing-accordion-header" type="button" onclick="RoutingManager.toggleAccordion('settings')">
+          <div class="routing-acc-title">
+            <i data-lucide="settings" style="color: #64748b; width: 16px; height: 16px;"></i>
+            <span data-i18n="routing.settings_section">路網設定與交通模式</span>
+          </div>
+          <i data-lucide="chevron-down" class="routing-acc-icon"></i>
+        </button>
+        <div class="routing-accordion-content" id="routing-content-settings">
+          <div class="routing-settings-grid">
+            <label for="routing-mode" data-i18n="routing.mode">路徑模式</label>
+            <select id="routing-mode">
+              <option value="open" selected data-i18n="routing.mode_open">固定起終點（開放路徑）</option>
+              <option value="roundtrip" data-i18n="routing.mode_roundtrip">環狀路徑（終點回到起點）</option>
+            </select>
+
+            <label for="routing-lock-start-end" data-i18n="routing.lock_start_end_label">起終點約束</label>
+            <div class="routing-checkbox-row">
+              <input type="checkbox" id="routing-lock-start-end" checked />
+              <label for="routing-lock-start-end" data-i18n="routing.lock_start_end">最佳化時鎖定起點與終點（僅重新排序中途點）</label>
+            </div>
+
+            <label for="routing-osrm-url" data-i18n="routing.osrm_url">OSRM 服務網址</label>
+            <input id="routing-osrm-url" type="url" value="https://router.project-osrm.org" spellcheck="false" autocomplete="off" />
+
+            <label for="routing-osrm-profile" data-i18n="routing.profile">交通模式</label>
+            <select id="routing-osrm-profile">
+              <option value="driving" selected data-i18n="routing.profile_driving">汽車（driving）</option>
+              <option value="cycling" data-i18n="routing.profile_cycling">自行車（cycling）</option>
+              <option value="walking" data-i18n="routing.profile_walking">步行（walking）</option>
+            </select>
+
+            <label for="routing-fallback-policy" data-i18n="routing.fallback_policy">失敗處理策略</label>
+            <select id="routing-fallback-policy">
+              <option value="stop" selected data-i18n="routing.fallback_stop">停止並顯示錯誤（推薦）</option>
+              <option value="preview" data-i18n="routing.fallback_preview">顯示不可保存的直線預覽</option>
+            </select>
+          </div>
+
+          <div class="routing-settings-actions">
+            <button id="btn-routing-apply-osrm" class="btn btn-secondary btn-xs" type="button" onclick="RoutingManager.applyOsrmSettings()">
+              <i data-lucide="check" style="width: 13px; height: 13px;"></i><span data-i18n="routing.apply_settings">套用設定</span>
+            </button>
+            <button id="btn-routing-test-osrm" class="btn btn-secondary btn-xs" type="button" onclick="RoutingManager.testService()">
+              <i data-lucide="activity" style="width: 13px; height: 13px;"></i><span data-i18n="routing.test_service">測試服務</span>
+            </button>
+            <button id="btn-routing-clear-consent" class="btn btn-secondary btn-xs" type="button" onclick="RoutingManager.clearConsentedHosts()" title="清除此瀏覽器記住的外部 OSRM 服務授權記錄" data-i18n-title="routing.clear_consent_title">
+              <i data-lucide="shield-off" style="width: 13px; height: 13px;"></i><span data-i18n="routing.clear_consent">清除授權記錄</span>
+            </button>
+          </div>
+          <div class="routing-service-status-row">
+            <span id="routing-service-status" class="routing-service-status is-unknown" data-i18n="routing.service_untested">尚未測試</span>
+          </div>
+          <small class="routing-osrm-hint" data-i18n="routing.osrm_hint">
+            公開示範服務通常僅提供汽車模式；自行車與步行需使用對應設定檔建立的 OSRM 服務。超過 90 點將採分段請求，若服務有限制將清晰提示。
+          </small>
+        </div>
+      </div>
+
+      <!-- Section 4: 結果 (Results) -->
+      <div class="routing-accordion-item" id="routing-acc-results">
+        <button class="routing-accordion-header" type="button" onclick="RoutingManager.toggleAccordion('results')">
+          <div class="routing-acc-title">
+            <i data-lucide="clipboard-check" style="color: #059669; width: 16px; height: 16px;"></i>
+            <span data-i18n="routing.results_section">分析結果</span>
+            <span id="routing-result-badge" class="routing-count-badge" style="display: none;" data-i18n="routing.result_badge">已生成</span>
+          </div>
+          <i data-lucide="chevron-down" class="routing-acc-icon"></i>
+        </button>
+        <div class="routing-accordion-content" id="routing-content-results">
+          <div id="routing-result" class="routing-result">
+            <div class="routing-empty" data-i18n="routing.empty_results">尚未計算路徑。請於下方執行計算。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Fixed Bottom Controls -->
+    <div class="routing-panel-footer">
+      <div class="routing-main-actions">
+        <button id="btn-routing-calc-current" class="btn btn-secondary" type="button" onclick="RoutingManager.calculateCurrentOrder()" disabled title="依目前清單排列順序計算路線" data-i18n-title="routing.calc_current_title">
+          <i data-lucide="play" style="width: 14px; height: 14px;"></i><span data-i18n="routing.calc_current">依目前順序計算</span>
+        </button>
+        <button id="btn-routing-optimize" class="btn btn-primary" type="button" onclick="RoutingManager.optimize()" disabled title="以本機 2-Opt 最佳化停靠順序並計算路線" data-i18n-title="routing.calc_optimize_title">
+          <i data-lucide="wand-sparkles" style="width: 14px; height: 14px;"></i><span data-i18n="routing.calc_optimize">最佳化順序計算</span>
+        </button>
+        <button id="btn-routing-cancel" class="btn btn-danger-outline" type="button" onclick="RoutingManager.cancelOperation()" hidden>
+          <i data-lucide="square" style="width: 14px; height: 14px;"></i><span data-i18n="routing.cancel">取消</span>
+        </button>
+      </div>
+      <div class="routing-save-actions">
+        <button id="btn-routing-save" class="btn btn-success" type="button" disabled onclick="RoutingManager.saveRoute()" title="保存路線至工作圖層" data-i18n-title="routing.save_route_title">
+          <i data-lucide="save" style="width: 14px; height: 14px;"></i><span data-i18n="routing.save_route">保存路線至圖層</span>
+        </button>
+        <button id="btn-routing-clear" class="btn btn-secondary" type="button" onclick="RoutingManager.clear()" title="清空所有點位、屏障與分析結果" data-i18n-title="routing.clear_all_title">
+          <i data-lucide="trash-2" style="width: 14px; height: 14px;"></i><span data-i18n="routing.clear_all">全部清除</span>
+        </button>
+      </div>
+      <p id="routing-privacy" class="routing-privacy" data-i18n="routing.privacy_footer">未取得同意前絕不傳送座標；第一次請求前將跳出傳輸確認。</p>
+    </div>
+  </div>
+
+  <!-- TGOS Address Locator Panel -->
+  <div id="tgos-locator-panel" class="floating-panel tgos-locator-panel" style="display: none;">
+    <div class="tgos-locator-header">
+      <h3><i data-lucide="map-pin-search"></i><span data-i18n="tgos.title">TGOS 地址定位</span></h3>
+      <button class="modal-close" type="button" onclick="TGOSAddressManager.close()" aria-label="關閉 TGOS 地址定位" data-i18n-aria="tgos.close_title">&times;</button>
+    </div>
+    <div class="tgos-locator-body">
+      <label for="tgos-address" data-i18n="tgos.address_label">臺灣地址</label>
+      <div class="tgos-search-row">
+        <input id="tgos-address" type="search" placeholder="例如：臺北市中山區松江路469巷4號" data-i18n-placeholder="tgos.address_placeholder" autocomplete="street-address" />
+        <button id="btn-tgos-search" class="btn btn-primary" type="button" onclick="TGOSAddressManager.locate()">
+          <i data-lucide="search"></i><span data-i18n="tgos.locate_btn">定位</span>
+        </button>
+      </div>
+      <details class="tgos-credentials">
+        <summary data-i18n="tgos.cred_summary">TGOS API 憑證設定</summary>
+        <div class="tgos-credential-fields">
+          <label for="tgos-app-id">AppID</label>
+          <input id="tgos-app-id" type="text" spellcheck="false" autocomplete="off" placeholder="TGOS AppID" data-i18n-placeholder="tgos.app_id_placeholder" />
+          <label for="tgos-api-key">APIKey</label>
+          <input id="tgos-api-key" type="password" spellcheck="false" autocomplete="off" placeholder="TGOS APIKey" data-i18n-placeholder="tgos.api_key_placeholder" />
+          <small data-i18n="tgos.cred_note">AppID 會保存在此瀏覽器；APIKey 僅保留於目前分頁。TGOS 另會驗證申請時登記的 Domain/IP。</small>
+          <button id="btn-tgos-clear-credentials" class="btn btn-secondary-outline" type="button" onclick="TGOSAddressManager.clearCredentials()" style="margin-top: 8px; width: 100%;">
+            <i data-lucide="shield-x" style="width: 14px; height: 14px;"></i><span data-i18n="tgos.clear_cred">清除 TGOS 憑證</span>
+          </button>
+        </div>
+      </details>
+      <div id="tgos-status" class="tgos-status" data-i18n="tgos.status_init">請先設定 TGOS 憑證，再輸入地址定位。</div>
+      <div id="tgos-results" class="tgos-results" hidden></div>
+    </div>
+    <div class="tgos-locator-actions">
+      <button id="btn-tgos-add-layer" class="btn btn-secondary" type="button" onclick="TGOSAddressManager.addSelectedToLayer()" disabled data-i18n="tgos.add_layer">加入工作圖層</button>
+      <button id="btn-tgos-add-route" class="btn btn-success" type="button" onclick="TGOSAddressManager.addSelectedToRoute()" disabled data-i18n="tgos.add_route">加入路網停靠點</button>
+    </div>
+    <p class="tgos-privacy" data-i18n="tgos.privacy_note">查詢時會將輸入地址、AppID 與 APIKey 傳送至 TGOS 官方服務。</p>
+  </div>
+
+  <!-- Geoprocessing Toolbox Floating Panel -->
+  <div id="geoprocessing-panel" class="floating-panel geoprocessing-panel" style="display: none;">
+    <div class="gp-panel-header">
+      <h3><i data-lucide="box" style="color: #2563eb; width: 18px; height: 18px;"></i><span data-i18n="gp.title">空間處理工具箱</span></h3>
+      <button class="modal-close" id="btn-gp-close" type="button" aria-label="關閉工具箱" data-i18n-aria="gp.close_title">&times;</button>
+    </div>
+
+    <!-- Tool Tabs -->
+    <div class="gp-tool-tabs">
+      <button type="button" class="gp-tool-tab active" data-tool="buffer" title="緩衝區分析" data-i18n-title="gp.tab_buffer_title"><i data-lucide="circle-dot"></i><span data-i18n="gp.tab_buffer">緩衝區</span></button>
+      <button type="button" class="gp-tool-tab" data-tool="clip" title="裁切" data-i18n-title="gp.tab_clip_title"><i data-lucide="scissors"></i><span data-i18n="gp.tab_clip">裁切</span></button>
+        <button type="button" class="gp-tool-tab" data-tool="intersect" title="幾何相交" data-i18n-title="gp.tab_intersect_title"><i data-lucide="combine"></i><span data-i18n="gp.tab_intersect">相交</span></button>
+      <button type="button" class="gp-tool-tab" data-tool="merge" title="合併多圖層" data-i18n-title="gp.tab_merge_title"><i data-lucide="combine"></i><span data-i18n="gp.tab_merge">合併</span></button>
+      <button type="button" class="gp-tool-tab" data-tool="dissolve" title="圖元融合" data-i18n-title="gp.tab_dissolve_title"><i data-lucide="merge"></i><span data-i18n="gp.tab_dissolve">融合</span></button>
+      <button type="button" class="gp-tool-tab" data-tool="save_selected" title="選取另存新圖層" data-i18n-title="gp.tab_save_selected_title"><i data-lucide="save"></i><span data-i18n="gp.tab_save_selected">選取另存</span></button>
+    </div>
+
+    <div class="gp-panel-body">
+      <!-- 1. Buffer Form -->
+      <div class="gp-tool-form active" data-tool="buffer">
+        <label for="gp-buffer-layer" data-i18n="gp.input_layer">輸入圖層：</label>
+        <select id="gp-buffer-layer"></select>
+
+        <div class="gp-form-row">
+          <div style="flex: 1;">
+            <label for="gp-buffer-dist" data-i18n="gp.buffer_dist">緩衝距離：</label>
+            <input type="number" id="gp-buffer-dist" value="100" min="0.1" step="any" />
+          </div>
+          <div style="width: 100px;">
+            <label for="gp-buffer-unit" data-i18n="gp.unit">單位：</label>
+            <select id="gp-buffer-unit">
+              <option value="meters" selected data-i18n="gp.unit_meters">公尺 (m)</option>
+              <option value="kilometers" data-i18n="gp.unit_kilometers">公里 (km)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="gp-options-row">
+          <label><input type="checkbox" id="gp-buffer-dissolve"> <span data-i18n="gp.buffer_dissolve">融合重疊結果 (Dissolve)</span></label>
+          <label><input type="checkbox" id="gp-buffer-selected-only"> <span data-i18n="gp.selected_only">僅處理目前選取圖元</span></label>
+        </div>
+
+        <label for="gp-buffer-output-name" data-i18n="gp.output_name">輸出圖層名稱：</label>
+        <input type="text" id="gp-buffer-output-name" value="緩衝區" data-i18n-value="gp.default_buffer_name" />
+      </div>
+
+      <!-- 2. Clip Form -->
+      <div class="gp-tool-form" data-tool="clip">
+        <label for="gp-clip-source" data-i18n="gp.clip_source">來源圖層 (點/線/面)：</label>
+        <select id="gp-clip-source"></select>
+
+        <label for="gp-clip-mask" data-i18n="gp.clip_mask">裁切遮罩圖層 (僅限面圖層)：</label>
+        <select id="gp-clip-mask"></select>
+
+        <div class="gp-options-row">
+          <label><input type="checkbox" id="gp-clip-selected-only"> <span data-i18n="gp.clip_selected_only">僅處理來源選取圖元</span></label>
+        </div>
+
+        <label for="gp-clip-output-name" data-i18n="gp.output_name">輸出圖層名稱：</label>
+        <input type="text" id="gp-clip-output-name" value="裁切結果" data-i18n-value="gp.default_clip_name" />
+      </div>
+
+      <!-- 3. Intersect Form -->
+      <div class="gp-tool-form" data-tool="intersect">
+        <label for="gp-intersect-a" data-i18n="gp.intersect_a">圖層 A：</label>
+        <select id="gp-intersect-a"></select>
+
+        <label for="gp-intersect-b" data-i18n="gp.intersect_b">圖層 B：</label>
+        <select id="gp-intersect-b"></select>
+
+        <p class="gp-hint-text" data-i18n="gp.hint_intersect">支援面與面、點與面、線與面。系統自動進行空間 BBox 預篩選，並將重名欄位加上 A_ 與 B_ 前綴。</p>
+
+        <label for="gp-intersect-output-name" data-i18n="gp.output_name">輸出圖層名稱：</label>
+        <input type="text" id="gp-intersect-output-name" value="相交結果" data-i18n-value="gp.default_intersect_name" />
+      </div>
+
+      <!-- 4. Merge Form -->
+      <div class="gp-tool-form" data-tool="merge">
+        <label data-i18n="gp.merge_select_label">勾選要合併的圖層 (需屬同一幾何家族)：</label>
+        <div id="gp-merge-layers-list" class="gp-merge-list"></div>
+
+        <p class="gp-hint-text" data-i18n="gp.hint_merge">屬性欄位自動取聯集，缺值自動填補 null。保留 source_layer 與 source_feature_id。</p>
+
+        <label for="gp-merge-output-name" data-i18n="gp.output_name">輸出圖層名稱：</label>
+        <input type="text" id="gp-merge-output-name" value="合併圖層" data-i18n-value="gp.default_merge_name" />
+      </div>
+
+      <!-- 5. Dissolve Form -->
+      <div class="gp-tool-form" data-tool="dissolve">
+        <label for="gp-dissolve-layer" data-i18n="gp.dissolve_input">輸入面圖層 (Polygon)：</label>
+        <select id="gp-dissolve-layer"></select>
+
+        <label for="gp-dissolve-field" data-i18n="gp.dissolve_field">融合分組欄位：</label>
+        <select id="gp-dissolve-field">
+          <option value="__ALL__" data-i18n="gp.dissolve_all">(全部融合，不分組)</option>
+        </select>
+
+        <p class="gp-hint-text" data-i18n="gp.hint_dissolve">依指定屬性融合相鄰或分離之多邊形。支援異常圖元安全隔離與錯誤摘要回報。</p>
+
+        <label for="gp-dissolve-output-name" data-i18n="gp.output_name">輸出圖層名稱：</label>
+        <input type="text" id="gp-dissolve-output-name" value="融合結果" data-i18n-value="gp.default_dissolve_name" />
+      </div>
+
+      <!-- 6. Save Selected Form -->
+      <div class="gp-tool-form" data-tool="save_selected">
+        <p class="gp-hint-text" id="gp-save-selected-info">
+          <span data-i18n="gp.save_selected_info">目前已選取：</span><strong id="gp-save-selected-count">0 個選取圖元</strong>
+        </p>
+        <p class="gp-hint-text" data-i18n="gp.save_selected_hint">若選取內容包含不同幾何類型，將自動依點、線、面分流為不同圖層，確保相容標準 GIS 圖資格式。</p>
+
+        <label for="gp-save-output-name" data-i18n="gp.save_output_base">輸出圖層基礎名稱：</label>
+        <input type="text" id="gp-save-output-name" value="選取圖元" data-i18n-value="gp.default_save_selected_name" />
+      </div>
+
+      <!-- Progress Section -->
+      <div id="gp-progress-container" class="gp-progress-container" style="display: none;">
+        <div class="gp-progress-track">
+          <div id="gp-progress-bar" class="gp-progress-bar" style="width: 0%;"></div>
+        </div>
+        <div class="gp-progress-info">
+          <span id="gp-progress-text" data-i18n="gp.progress_running">運算進行中...</span>
+          <button type="button" class="btn btn-secondary btn-xs" id="btn-gp-cancel" data-i18n="gp.cancel">取消</button>
+        </div>
+      </div>
+
+      <!-- Error / Summary Box -->
+      <div id="gp-error-summary" class="gp-error-summary" style="display: none;"></div>
+    </div>
+
+    <div class="gp-panel-footer">
+      <button type="button" class="btn btn-primary" id="btn-gp-run" style="width: 100%; justify-content: center;">
+        <i data-lucide="play" style="width: 14px; height: 14px;"></i>
+        <span data-i18n="gp.run_btn">執行空間運算</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toast-container"></div>
+
+  <!-- Third-party GIS Libraries via CDN -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2.14.2/dist/leaflet-geoman.min.js"></script>
+  <script src="https://unpkg.com/@turf/turf@6.5.0/turf.min.js"></script>
+  <script src="https://unpkg.com/jszip@3.10.1/dist/jszip.min.js"></script>
+  <script src="https://unpkg.com/shpjs@4.0.4/dist/shp.js"></script>
+  <script src="https://unpkg.com/@mapbox/shp-write@0.4.3/shpwrite.js"></script>
+  <script src="https://unpkg.com/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
+  <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://unpkg.com/wellknown@0.5.0/wellknown.js"></script>
+  <script src="https://unpkg.com/lucide@1.46.0/dist/umd/lucide.min.js"></script>
+
+  <!-- Application Modules -->
+  <script src="js/i18n.js"></script>
+  <script src="js/safety.js"></script>
+  <script src="js/measure.js"></script>
+  <script src="js/io.js"></script>
+  <script src="js/table.js"></script>
+  <script src="js/draw.js"></script>
+  <script src="js/layers.js"></script>
+  <script src="js/catalog.js"></script>
+  <script src="js/tgos-address.js"></script>
+  <script src="js/routing-multipoint.js"></script>
+  <script src="js/selection.js"></script>
+  <script src="js/topology.js"></script>
+  <script src="js/field-calculator.js"></script>
+  <script src="js/geoprocessing.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
