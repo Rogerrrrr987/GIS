@@ -189,10 +189,12 @@ window.TopologyManager = {
     App.showToast('紫色虛線為修復後預覽，確認後再套用修復', 'info');
   },
 
-  fixError(index) {
+  async fixError(index) {
      const err = this.errors[index];
      if (err && err.suggestion && err.layer) {
-        if (!confirm(`確定要修復 ${err.name} 的 ${err.type} 問題嗎？請先使用「預覽修復」確認結果。`)) return;
+        const confirmMsg = `確定要修復 ${err.name} 的 ${err.type} 問題嗎？請先使用「預覽修復」確認結果。`;
+        const confirmed = App?.confirm ? await App.confirm(confirmMsg, { isDanger: false }) : true;
+        if (!confirmed) return;
         this.clearPreview();
         
         const gisLayerId = err.layer.gisLayerId;

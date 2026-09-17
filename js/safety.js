@@ -612,7 +612,11 @@ const SafetyManager = {
       App?.showToast('專案檔超過 50 MB 安全上限', 'error');
       return;
     }
-    if (this.dirty && !confirm('目前有尚未另存的修改。確定要開啟另一個專案嗎？')) return;
+    if (this.dirty) {
+      const confirmMsg = '目前有尚未另存的修改。確定要開啟另一個專案嗎？';
+      const confirmed = App?.confirm ? await App.confirm(confirmMsg, { isDanger: true }) : true;
+      if (!confirmed) return;
+    }
     try {
       const project = JSON.parse(await file.text());
       this.validateProject(project);

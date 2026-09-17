@@ -44,9 +44,17 @@ const TGOSAddressManager = {
     this.panel.style.display = this.isActive ? 'block' : 'none';
     document.getElementById('btn-tgos-locate')?.classList.toggle('active', this.isActive);
     if (this.isActive) {
-      if (typeof RoutingManager !== 'undefined' && RoutingManager.isActive) RoutingManager.toggle();
-      if (typeof GeoprocessingManager !== 'undefined' && GeoprocessingManager.isActive) GeoprocessingManager.close();
+      if (typeof PanelManager !== 'undefined') {
+        PanelManager.onPanelOpened('tgos');
+      } else {
+        if (typeof RoutingManager !== 'undefined' && RoutingManager.isActive) RoutingManager.toggle();
+        if (typeof GeoprocessingManager !== 'undefined' && GeoprocessingManager.isActive) GeoprocessingManager.close();
+      }
       setTimeout(() => document.getElementById('tgos-address')?.focus(), 0);
+    } else {
+      if (typeof PanelManager !== 'undefined') {
+        PanelManager.onPanelClosed('tgos');
+      }
     }
   },
 
@@ -55,6 +63,9 @@ const TGOSAddressManager = {
     this.isActive = false;
     this.panel.style.display = 'none';
     document.getElementById('btn-tgos-locate')?.classList.remove('active');
+    if (typeof PanelManager !== 'undefined') {
+      PanelManager.onPanelClosed('tgos');
+    }
   },
 
   setStatus(message, className = '') {

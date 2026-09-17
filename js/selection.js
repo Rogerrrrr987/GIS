@@ -124,11 +124,15 @@ window.SelectionManager = {
     return all.filter(f => f.featureProps && this.selectedIds.has(f.featureProps.id));
   },
 
-  deleteSelected() {
+  async deleteSelected() {
     const selected = this.getSelectedFeatures();
     if (selected.length === 0) return;
     
-    if (!confirm(`確定要刪除選取的 ${selected.length} 個圖元嗎？`)) return;
+    const confirmMsg = typeof I18n !== 'undefined'
+      ? I18n.t('style.delete_confirm', { count: selected.length })
+      : `確定要刪除選取的 ${selected.length} 個圖元嗎？`;
+    const confirmed = App?.confirm ? await App.confirm(confirmMsg, { isDanger: true }) : true;
+    if (!confirmed) return;
     
     let removed = 0;
     selected.forEach(layer => {

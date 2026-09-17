@@ -21,7 +21,8 @@ const CatalogManager = {
       const files = Array.from(event.target.files || []);
       if (files.length) {
         await App.processFiles(files);
-        files.forEach(file => this.addRecent(file.name, '本機檔案'));
+        const sourceLabel = typeof I18n !== 'undefined' ? I18n.t('catalog.source_local', '本機檔案') : '本機檔案';
+        files.forEach(file => this.addRecent(file.name, sourceLabel));
       }
       event.target.value = '';
     });
@@ -31,6 +32,12 @@ const CatalogManager = {
 
   toggle() {
     this.panel?.classList.toggle('is-hidden');
+    const isNowOpen = !this.panel?.classList.contains('is-hidden');
+    if (isNowOpen && typeof window !== 'undefined' && window.innerWidth < 1200) {
+      if (typeof GeoprocessingManager !== 'undefined' && GeoprocessingManager.isActive) {
+        GeoprocessingManager.close();
+      }
+    }
   },
 
   hide() {
@@ -61,7 +68,9 @@ const CatalogManager = {
     if (!recent.length) {
       const empty = document.createElement('p');
       empty.className = 'catalog-empty';
-      empty.textContent = '尚未呼叫任何資料。選擇電腦檔案後會顯示於此。';
+      empty.textContent = typeof I18n !== 'undefined'
+        ? I18n.t('catalog.empty_hint', '尚未呼叫任何資料。選擇電腦檔案後會顯示於此。')
+        : '尚未呼叫任何資料。選擇電腦檔案後會顯示於此。';
       this.recentList.appendChild(empty);
       return;
     }
@@ -69,11 +78,17 @@ const CatalogManager = {
     recent.forEach(entry => {
       const button = document.createElement('button');
       button.className = 'catalog-file';
-      button.title = `重新選擇「${entry.name}」`;
+      button.title = typeof I18n !== 'undefined'
+        ? I18n.t('catalog.reselect_file', { name: entry.name })
+        : `重新選擇「${entry.name}」`;
       // Category A: Static HTML skeleton without dynamic interpolation; values inserted via textContent below
       button.innerHTML = '<i data-lucide="history"></i><span><strong></strong><small></small></span>';
       button.querySelector('strong').textContent = entry.name;
-      button.querySelector('small').textContent = entry.source;
+      const isLocal = entry.source === '本機檔案' || entry.source === 'Local File' || !entry.source;
+      const displaySource = isLocal
+        ? (typeof I18n !== 'undefined' ? I18n.t('catalog.source_local', '本機檔案') : '本機檔案')
+        : entry.source;
+      button.querySelector('small').textContent = displaySource;
       button.addEventListener('click', () => this.fileInput?.click());
       this.recentList.appendChild(button);
     });

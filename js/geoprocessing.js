@@ -121,12 +121,16 @@
       if (!this.panel) this.panel = document.getElementById('geoprocessing-panel');
       if (!this.panel) return;
 
-      // Mutual exclusivity: Close Routing and TGOS panels
-      if (typeof RoutingManager !== 'undefined' && RoutingManager.isActive) {
-        RoutingManager.toggle();
-      }
-      if (typeof TGOSAddressManager !== 'undefined' && TGOSAddressManager.isActive) {
-        TGOSAddressManager.close();
+      // Mutual exclusivity coordinated via PanelManager with fallback for headless testing
+      if (typeof PanelManager !== 'undefined') {
+        PanelManager.onPanelOpened('geoprocessing');
+      } else {
+        if (typeof RoutingManager !== 'undefined' && RoutingManager.isActive) {
+          RoutingManager.toggle();
+        }
+        if (typeof TGOSAddressManager !== 'undefined' && TGOSAddressManager.isActive) {
+          TGOSAddressManager.close();
+        }
       }
 
       this.isActive = true;
@@ -144,6 +148,9 @@
       this.isActive = false;
       this.panel.style.display = 'none';
       document.getElementById('btn-geoprocessing')?.classList.remove('active');
+      if (typeof PanelManager !== 'undefined') {
+        PanelManager.onPanelClosed('geoprocessing');
+      }
     },
 
     toggle(toolName = 'buffer') {
