@@ -530,6 +530,15 @@ body {
   pointer-events: none;
 }
 
+/* Keep one dominant work surface while a large analysis tool is active. */
+.app-workspace.has-focused-tool .style-panel,
+.app-workspace.has-focused-tool .layer-panel {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateX(-12px);
+  pointer-events: none;
+}
+
 .layer-panel-header,
 .layer-row,
 .layer-row-label {

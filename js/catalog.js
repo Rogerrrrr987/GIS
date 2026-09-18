@@ -28,11 +28,12 @@ const CatalogManager = {
     });
 
     this.renderRecent();
+    this.syncVisibilityState();
   },
 
   toggle() {
-    this.panel?.classList.toggle('is-hidden');
-    const isNowOpen = !this.panel?.classList.contains('is-hidden');
+    const isNowOpen = Boolean(this.panel?.classList.contains('is-hidden'));
+    this.setOpen(isNowOpen);
     if (isNowOpen && typeof window !== 'undefined' && window.innerWidth < 1200) {
       if (typeof GeoprocessingManager !== 'undefined' && GeoprocessingManager.isActive) {
         GeoprocessingManager.close();
@@ -41,7 +42,21 @@ const CatalogManager = {
   },
 
   hide() {
-    this.panel?.classList.add('is-hidden');
+    this.setOpen(false);
+  },
+
+  setOpen(isOpen) {
+    if (!this.panel) return;
+    this.panel.classList.toggle('is-hidden', !isOpen);
+    this.syncVisibilityState();
+  },
+
+  syncVisibilityState() {
+    if (!this.panel) return;
+    const isHidden = this.panel.classList.contains('is-hidden');
+    this.panel.setAttribute('aria-hidden', String(isHidden));
+    this.panel.inert = isHidden;
+    document.getElementById('btn-toggle-catalog')?.setAttribute('aria-expanded', String(!isHidden));
   },
 
   getRecent() {

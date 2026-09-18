@@ -63,11 +63,9 @@ const PanelManager = {
       }
     });
 
-    if (name === 'geoprocessing') {
-      if (typeof CatalogManager !== 'undefined' && window.innerWidth < 1200) {
-        CatalogManager.hide();
-      }
-    }
+    // Large analysis tools receive a focused workspace. The catalog can be
+    // reopened explicitly after leaving the tool instead of competing for map space.
+    if (typeof CatalogManager !== 'undefined') CatalogManager.hide();
 
     const target = this.panels[name];
     if (target) {
@@ -103,9 +101,7 @@ const PanelManager = {
         this.panels[panelKey].close();
       }
     });
-    if (name === 'geoprocessing' && typeof CatalogManager !== 'undefined' && window.innerWidth < 1200) {
-      CatalogManager.hide();
-    }
+    if (typeof CatalogManager !== 'undefined') CatalogManager.hide();
     this.activePanel = name;
     this.syncButtonStates();
   },
@@ -118,7 +114,9 @@ const PanelManager = {
   },
 
   syncButtonStates() {
-    let anyActive = false;
+    // activePanel is set by onPanelOpened before some managers finish updating
+    // their own isActive flag, so it is the authoritative transition state.
+    let anyActive = Boolean(this.activePanel);
     Object.keys(this.panels).forEach(key => {
       const p = this.panels[key];
       const isCurrentlyOpen = p.isOpen();
@@ -131,6 +129,16 @@ const PanelManager = {
 
     const toolsDropdownBtn = document.getElementById('tools-dropdown-btn');
     toolsDropdownBtn?.classList.toggle('has-active-tool', anyActive);
+
+    const workspace = document.querySelector('.app-workspace');
+    workspace?.classList.toggle('has-focused-tool', anyActive);
+
+    // The panels remain in their previous open/closed state, but are removed
+    // from keyboard navigation while a focused analysis tool is active.
+    ['style-panel', 'layer-panel'].forEach(id => {
+      const panel = document.getElementById(id);
+      if (panel) panel.inert = anyActive;
+    });
   },
 
   handleEscape(event) {

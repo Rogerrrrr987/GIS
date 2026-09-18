@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="app.page_title">GeoCanvas - 簡易 GIS 向量繪製與圖資轉換工具</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f766e'/%3E%3Cpath d='M32 12c-9.4 0-17 7.6-17 17 0 12.4 17 25 17 25s17-12.6 17-25c0-9.4-7.6-17-17-17zm0 24a7 7 0 1 1 0-14 7 7 0 0 1 0 14z' fill='white'/%3E%3C/svg%3E">
   
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -220,7 +221,7 @@
       </div>
     </aside>
 
-    <aside class="catalog-panel" id="catalog-panel" aria-label="資料目錄" data-i18n-aria="catalog.title">
+    <aside class="catalog-panel is-hidden" id="catalog-panel" aria-label="資料目錄" data-i18n-aria="catalog.title" aria-hidden="true" inert>
       <div class="catalog-header">
         <div><i data-lucide="folder-tree" style="width: 17px; height: 17px;"></i><span data-i18n="catalog.title">資料目錄</span></div>
         <button id="btn-close-catalog" class="icon-button" title="收合資料目錄" data-i18n-title="catalog.close_title" aria-label="收合資料目錄" data-i18n-aria="catalog.close_title"><i data-lucide="chevrons-right" style="width: 17px; height: 17px;"></i></button>
