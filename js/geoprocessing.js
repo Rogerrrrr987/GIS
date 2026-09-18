@@ -134,7 +134,7 @@
       }
 
       this.isActive = true;
-      this.panel.style.display = 'block';
+      this.panel.style.display = 'flex';
       document.getElementById('btn-geoprocessing')?.classList.add('active');
 
       this.selectTool(toolName);

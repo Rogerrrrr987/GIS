@@ -488,7 +488,7 @@ window.RoutingManager = {
   toggle() {
     if (!this.map || !this.panel) return;
     this.isActive = !this.isActive;
-    this.panel.style.display = this.isActive ? 'block' : 'none';
+    this.panel.style.display = this.isActive ? 'flex' : 'none';
     this.map.getContainer().classList.toggle('map-routing-mode', this.isActive);
     document.getElementById('btn-routing')?.classList.toggle('active', this.isActive);
 

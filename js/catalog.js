@@ -34,10 +34,8 @@ const CatalogManager = {
   toggle() {
     const isNowOpen = Boolean(this.panel?.classList.contains('is-hidden'));
     this.setOpen(isNowOpen);
-    if (isNowOpen && typeof window !== 'undefined' && window.innerWidth < 1200) {
-      if (typeof GeoprocessingManager !== 'undefined' && GeoprocessingManager.isActive) {
-        GeoprocessingManager.close();
-      }
+    if (isNowOpen && typeof PanelManager !== 'undefined' && PanelManager.activePanel) {
+      PanelManager.close(PanelManager.activePanel);
     }
   },
 

@@ -133,12 +133,9 @@ const PanelManager = {
     const workspace = document.querySelector('.app-workspace');
     workspace?.classList.toggle('has-focused-tool', anyActive);
 
-    // The panels remain in their previous open/closed state, but are removed
-    // from keyboard navigation while a focused analysis tool is active.
-    ['style-panel', 'layer-panel'].forEach(id => {
-      const panel = document.getElementById(id);
-      if (panel) panel.inert = anyActive;
-    });
+    // The contextual inspector is replaced by the active right-side tool.
+    const stylePanel = document.getElementById('style-panel');
+    if (stylePanel) stylePanel.inert = anyActive;
   },
 
   handleEscape(event) {

@@ -16,6 +16,7 @@
   --text-muted: #64748b;
   --header-height: 54px;
   --statusbar-height: 28px;
+  --right-dock-width: 400px;
   --panel-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.12), 0 2px 6px -1px rgba(0, 0, 0, 0.07);
 }
 
@@ -420,14 +421,22 @@ body {
   box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
 }
 
-/* Styling & Properties Palette (Floating Top-Left beside Geoman) */
+/* Context inspector: shown on the right only when a feature is selected. */
 .style-panel {
-  top: 14px;
-  left: 64px;
-  min-width: 280px;
+  display: none;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: auto;
+  width: 320px;
+  min-width: 0;
   font-size: 0.82rem;
-  background: rgba(255, 255, 255, 0.96);
-  padding: 8px 12px;
+  background: #fff;
+  padding: 12px 14px;
+  border-radius: 0;
+  border-width: 0 0 0 1px;
+  box-shadow: -5px 0 18px rgba(15, 23, 42, 0.12);
+  overflow-y: auto;
 }
 
 .panel-heading {
@@ -466,6 +475,7 @@ body {
   border-top: 1px solid #e2e8f0;
 }
 
+.style-panel.has-selection { display: block; }
 .style-panel.has-selection .style-controls { display: flex; }
 .style-panel.has-selection .panel-empty-state { display: none; }
 
@@ -512,7 +522,7 @@ body {
 .layer-panel {
   position: absolute;
   z-index: 850;
-  top: 132px;
+  top: 14px;
   /* Keep the panel clear of Leaflet-Geoman's left tool rail. */
   left: 64px;
   width: min(248px, calc(100% - 78px));
@@ -530,14 +540,8 @@ body {
   pointer-events: none;
 }
 
-/* Keep one dominant work surface while a large analysis tool is active. */
-.app-workspace.has-focused-tool .style-panel,
-.app-workspace.has-focused-tool .layer-panel {
-  opacity: 0;
-  visibility: hidden;
-  transform: translateX(-12px);
-  pointer-events: none;
-}
+/* Analysis tools replace the right inspector, while layers remain on the left. */
+.app-workspace.has-focused-tool .style-panel { display: none; }
 
 .layer-panel-header,
 .layer-row,
@@ -2003,10 +2007,6 @@ body {
   transition: right 0.22s ease;
 }
 
-.app-workspace:has(.catalog-panel:not(.is-hidden)) .geoprocessing-panel {
-  right: 308px;
-}
-
 .gp-panel-header {
   flex: 0 0 auto;
   display: flex;
@@ -2419,6 +2419,39 @@ body {
 .calc-status-error {
   color: #dc2626;
   font-weight: 600;
+}
+
+/* Desktop docked work area: large tools behave like the data catalog. */
+@media (min-width: 721px) {
+  .routing-panel,
+  .tgos-locator-panel,
+  .geoprocessing-panel {
+    position: fixed;
+    top: var(--header-height);
+    right: 0;
+    bottom: var(--statusbar-height);
+    left: auto;
+    width: var(--right-dock-width);
+    max-width: min(42vw, 420px);
+    max-height: none;
+    height: auto;
+    padding: 0;
+    border: 0;
+    border-left: 1px solid #cbd5e1;
+    border-radius: 0;
+    background: #fff;
+    backdrop-filter: none;
+    box-shadow: -5px 0 18px rgba(15, 23, 42, 0.12);
+    overflow: hidden;
+  }
+
+  .app-workspace:has(.style-panel.has-selection) .basemap-control {
+    right: 334px;
+  }
+
+  .app-workspace.has-focused-tool .basemap-control {
+    right: 414px;
+  }
 }
 
 @media (max-width: 720px) {

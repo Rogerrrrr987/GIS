@@ -41,7 +41,7 @@ const TGOSAddressManager = {
   toggle() {
     if (!this.panel) return;
     this.isActive = !this.isActive;
-    this.panel.style.display = this.isActive ? 'block' : 'none';
+    this.panel.style.display = this.isActive ? 'flex' : 'none';
     document.getElementById('btn-tgos-locate')?.classList.toggle('active', this.isActive);
     if (this.isActive) {
       if (typeof PanelManager !== 'undefined') {
