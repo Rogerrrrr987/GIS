@@ -57,6 +57,7 @@
       'header.open_project': '開啟專案',
       'header.undo': '復原',
       'header.redo': '重做',
+      'header.support': '支持開發',
       'header.import_data': '匯入圖資',
       'header.import_data_title': '匯入 KML / SHP / CSV / GeoJSON',
       'header.export_data': '匯出圖資',
@@ -147,6 +148,15 @@
       'catalog.recent_files': '最近呼叫',
       'catalog.privacy_note': '為保護隱私，請透過「選擇電腦檔案」授權要匯入的檔案。',
       'catalog.no_files': '尚無最近檔案記錄',
+
+      // Support Development
+      'support.title': '支持 GeoCanvas 開發',
+      'support.close_title': '收合支持開發面板',
+      'support.heading': '喜歡 GeoCanvas GIS 嗎？',
+      'support.description': '如果這個本機 GIS 工具對你有幫助，歡迎自願支持後續開發、測試與維護。',
+      'support.action': '前往 Buy Me a Coffee',
+      'support.privacy': '付款將在 Buy Me a Coffee 網站完成；GeoCanvas 不會接收或保存付款資料。',
+      'support.voluntary': '支持完全自願，未贊助仍可使用全部功能。',
 
       // Basemap Selector
       'basemap.title': '底圖',
@@ -628,6 +638,7 @@
       'header.open_project': 'Open Project',
       'header.undo': 'Undo',
       'header.redo': 'Redo',
+      'header.support': 'Support Development',
       'header.import_data': 'Import Data',
       'header.import_data_title': 'Import KML / SHP / CSV / GeoJSON',
       'header.export_data': 'Export Data',
@@ -718,6 +729,15 @@
       'catalog.recent_files': 'Recent Files',
       'catalog.privacy_note': 'For privacy, please authorize files to import via "Select Local Files".',
       'catalog.no_files': 'No recent files recorded',
+
+      // Support Development
+      'support.title': 'Support GeoCanvas Development',
+      'support.close_title': 'Close support panel',
+      'support.heading': 'Enjoying GeoCanvas GIS?',
+      'support.description': 'If this local GIS tool is useful to you, you can voluntarily support its continued development, testing, and maintenance.',
+      'support.action': 'Visit Buy Me a Coffee',
+      'support.privacy': 'Payment is completed on Buy Me a Coffee. GeoCanvas does not receive or store payment information.',
+      'support.voluntary': 'Support is entirely optional. Every feature remains available without payment.',
 
       // Basemap Selector
       'basemap.title': 'Basemap',

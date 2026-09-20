@@ -37,6 +37,9 @@ const CatalogManager = {
     if (isNowOpen && typeof PanelManager !== 'undefined' && PanelManager.activePanel) {
       PanelManager.close(PanelManager.activePanel);
     }
+    if (isNowOpen && typeof SupportPanelManager !== 'undefined') {
+      SupportPanelManager.close();
+    }
   },
 
   hide() {

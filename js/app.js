@@ -66,6 +66,7 @@ const PanelManager = {
     // Large analysis tools receive a focused workspace. The catalog can be
     // reopened explicitly after leaving the tool instead of competing for map space.
     if (typeof CatalogManager !== 'undefined') CatalogManager.hide();
+    if (typeof SupportPanelManager !== 'undefined') SupportPanelManager.close();
 
     const target = this.panels[name];
     if (target) {
@@ -173,7 +174,15 @@ const PanelManager = {
       }
     }
 
-    // 4. Attribute table drawer
+    // 4. Support panel
+    if (typeof SupportPanelManager !== 'undefined' && SupportPanelManager.isOpen()) {
+      SupportPanelManager.close({ restoreFocus: true });
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      return;
+    }
+
+    // 5. Attribute table drawer
     if (typeof TableManager !== 'undefined' && (TableManager.isOpen || TableManager.drawer?.classList.contains('open'))) {
       TableManager.close();
       event?.preventDefault?.();
@@ -181,7 +190,7 @@ const PanelManager = {
       return;
     }
 
-    // 5. Closable menus / popups
+    // 6. Closable menus / popups
     const openMenus = Array.from(document.querySelectorAll('.dropdown-menu.open, .dropdown.open'));
     if (openMenus.length > 0) {
       openMenus.forEach(m => m.classList.remove('open'));
@@ -192,6 +201,60 @@ const PanelManager = {
 };
 
 window.PanelManager = PanelManager;
+
+const SupportPanelManager = {
+  panel: null,
+  trigger: null,
+  returnFocus: null,
+
+  init() {
+    this.panel = document.getElementById('support-panel');
+    this.trigger = document.getElementById('btn-open-support');
+    this.returnFocus = document.getElementById('project-dropdown-btn');
+    this.trigger?.addEventListener('click', () => this.toggle());
+    document.getElementById('btn-close-support')?.addEventListener('click', () => this.close({ restoreFocus: true }));
+    this.sync(false);
+  },
+
+  isOpen() {
+    return Boolean(this.panel?.classList.contains('is-open'));
+  },
+
+  open() {
+    if (!this.panel) return;
+    document.getElementById('project-dropdown')?.classList.remove('open');
+    if (typeof PanelManager !== 'undefined' && PanelManager.activePanel) {
+      PanelManager.close(PanelManager.activePanel);
+    }
+    if (typeof CatalogManager !== 'undefined') CatalogManager.hide();
+    this.sync(true);
+    window.requestAnimationFrame(() => document.getElementById('btn-close-support')?.focus());
+  },
+
+  close({ restoreFocus = false } = {}) {
+    if (!this.panel) return;
+    const wasOpen = this.isOpen();
+    this.sync(false);
+    if (restoreFocus && wasOpen) this.returnFocus?.focus();
+  },
+
+  toggle() {
+    if (this.isOpen()) this.close({ restoreFocus: true });
+    else this.open();
+  },
+
+  sync(isOpen) {
+    if (!this.panel) return;
+    this.panel.classList.toggle('is-open', isOpen);
+    this.panel.setAttribute('aria-hidden', String(!isOpen));
+    this.panel.inert = !isOpen;
+    this.trigger?.setAttribute('aria-expanded', String(isOpen));
+    this.trigger?.classList.toggle('active', isOpen);
+    document.querySelector('.app-workspace')?.classList.toggle('has-support-panel', isOpen);
+  }
+};
+
+window.SupportPanelManager = SupportPanelManager;
 
 const App = {
   map: null,
@@ -259,6 +322,7 @@ const App = {
 
     // Initialize PanelManager
     PanelManager.init();
+    SupportPanelManager.init();
 
     // Render Lucide icons
     if (typeof lucide !== 'undefined') {
@@ -568,6 +632,7 @@ const App = {
     if (toolsBtn && toolsDropdown) {
       toolsBtn.addEventListener('click', (event) => {
         event.stopPropagation();
+        if (typeof SupportPanelManager !== 'undefined') SupportPanelManager.close();
         toolsDropdown.classList.toggle('open');
         exportDropdown?.classList.remove('open');
       });
@@ -579,6 +644,7 @@ const App = {
     if (langBtn && langDropdown) {
       langBtn.addEventListener('click', (event) => {
         event.stopPropagation();
+        if (typeof SupportPanelManager !== 'undefined') SupportPanelManager.close();
         langDropdown.classList.toggle('open');
         exportDropdown?.classList.remove('open');
         toolsDropdown?.classList.remove('open');

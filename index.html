@@ -38,6 +38,8 @@
           <div class="divider"></div>
           <button id="btn-project-undo" disabled><i data-lucide="undo-2"></i><span data-i18n="header.undo">復原</span><span class="project-shortcut">Ctrl+Z</span></button>
           <button id="btn-project-redo" disabled><i data-lucide="redo-2"></i><span data-i18n="header.redo">重做</span><span class="project-shortcut">Ctrl+Y</span></button>
+          <div class="divider"></div>
+          <button id="btn-open-support" aria-controls="support-panel" aria-expanded="false"><i data-lucide="heart-handshake"></i><span data-i18n="header.support">支持開發</span></button>
         </div>
         <input id="project-file-input" type="file" accept=".json,.gcp.json,application/json" hidden />
       </div>
@@ -239,6 +241,27 @@
         </section>
 
         <p class="catalog-note"><i data-lucide="shield-check" style="width: 14px; height: 14px;"></i> <span data-i18n="catalog.privacy_note">為保護隱私，請透過「選擇電腦檔案」授權要匯入的檔案。</span></p>
+      </div>
+    </aside>
+
+    <aside class="support-panel" id="support-panel" aria-label="支持 GeoCanvas 開發" data-i18n-aria="support.title" aria-hidden="true" inert>
+      <div class="support-header">
+        <div><i data-lucide="heart-handshake" style="width: 17px; height: 17px;"></i><span data-i18n="support.title">支持 GeoCanvas 開發</span></div>
+        <button id="btn-close-support" class="icon-button" title="收合支持開發面板" data-i18n-title="support.close_title" aria-label="收合支持開發面板" data-i18n-aria="support.close_title"><i data-lucide="chevrons-right" style="width: 17px; height: 17px;"></i></button>
+      </div>
+      <div class="support-body">
+        <div class="support-symbol" aria-hidden="true"><i data-lucide="coffee"></i></div>
+        <h3 data-i18n="support.heading">喜歡 GeoCanvas GIS 嗎？</h3>
+        <p data-i18n="support.description">如果這個本機 GIS 工具對你有幫助，歡迎自願支持後續開發、測試與維護。</p>
+        <a class="btn btn-primary support-link" href="https://buymeacoffee.com/allen89100q" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">
+          <i data-lucide="external-link" style="width: 16px; height: 16px;"></i>
+          <span data-i18n="support.action">前往 Buy Me a Coffee</span>
+        </a>
+        <div class="support-notice">
+          <i data-lucide="shield-check" aria-hidden="true"></i>
+          <p data-i18n="support.privacy">付款將在 Buy Me a Coffee 網站完成；GeoCanvas 不會接收或保存付款資料。</p>
+        </div>
+        <p class="support-voluntary" data-i18n="support.voluntary">支持完全自願，未贊助仍可使用全部功能。</p>
       </div>
     </aside>
 
