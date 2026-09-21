@@ -111,6 +111,12 @@ window.RoutingManager = {
     document.getElementById('routing-shp-import-mode')?.addEventListener('change', () => this.updateFilePreview());
     document.getElementById('routing-shp-conflict-resolution')?.addEventListener('change', () => this.updateFilePreview());
     document.getElementById('routing-shp-truncate-check')?.addEventListener('change', () => this.updateFilePreview());
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && this.inputMode === 'barriers') {
+        this.toggleBarrierMode();
+      }
+    });
   },
 
   generateId(prefix = 'rp') {
@@ -482,19 +488,27 @@ window.RoutingManager = {
   toggle() {
     if (!this.map || !this.panel) return;
     this.isActive = !this.isActive;
-    this.panel.style.display = this.isActive ? 'block' : 'none';
+    this.panel.style.display = this.isActive ? 'flex' : 'none';
     this.map.getContainer().classList.toggle('map-routing-mode', this.isActive);
+    document.getElementById('btn-routing')?.classList.toggle('active', this.isActive);
 
     this.map.off('click', this.handleMapClick);
 
     if (this.isActive) {
-      if (typeof TGOSAddressManager !== 'undefined' && TGOSAddressManager.isActive) TGOSAddressManager.close();
-      if (typeof GeoprocessingManager !== 'undefined' && GeoprocessingManager.isActive) GeoprocessingManager.close();
+      if (typeof PanelManager !== 'undefined') {
+        PanelManager.onPanelOpened('routing');
+      } else {
+        if (typeof TGOSAddressManager !== 'undefined' && TGOSAddressManager.isActive) TGOSAddressManager.close();
+        if (typeof GeoprocessingManager !== 'undefined' && GeoprocessingManager.isActive) GeoprocessingManager.close();
+      }
       this.disableMapEditingModes();
       this.map.on('click', this.handleMapClick);
-      this.setStatus('在地圖上依序點擊加入起點、停靠點與終點；或由上方按鈕匯入點位。');
+      this.setStatus(typeof I18n !== 'undefined' ? I18n.t('routing.click_map_add_points') : '在地圖上依序點擊加入起點、停靠點與終點；或由上方按鈕匯入點位。');
     } else {
       this.inputMode = 'stops';
+      if (typeof PanelManager !== 'undefined') {
+        PanelManager.onPanelClosed('routing');
+      }
     }
     this.render();
   },
@@ -507,7 +521,7 @@ window.RoutingManager = {
       if (this.map.pm.globalDragModeEnabled?.()) this.map.pm.disableGlobalDragMode();
       if (this.map.pm.globalRemovalModeEnabled?.()) this.map.pm.disableGlobalRemovalMode();
       if (this.map.pm.globalRotateModeEnabled?.()) this.map.pm.disableGlobalRotateMode();
-      if (this.map.pm.globalCutModeEnabled?.()) this.map.pm.disableGlobalCutMode();
+      if (this.map.pm.globalCutModeEnabled?.()) this.map.pm.disableCutMode?.() || this.map.pm.disableGlobalCutMode();
     } catch (_) {}
   },
 
@@ -518,7 +532,7 @@ window.RoutingManager = {
       return;
     }
     if (this.points.length >= this.maxPoints) {
-      window.App?.showToast(`分析點位已達 ${this.maxPoints} 點上限`, 'warning');
+      window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.max_points_reached', { max: this.maxPoints }) : `分析點位已達 ${this.maxPoints} 點上限`, 'warning');
       return;
     }
 
@@ -539,7 +553,7 @@ window.RoutingManager = {
       id: newId,
       lat,
       lng,
-      name: `點位 ${pointCount + 1}`,
+      name: typeof I18n !== 'undefined' ? I18n.t('routing.point_default_name', { id: pointCount + 1 }) : `點位 ${pointCount + 1}`,
       role,
       originalIndex: pointCount + 1
     });
@@ -553,18 +567,21 @@ window.RoutingManager = {
   toggleBarrierMode() {
     if (this.isBusy) return;
     this.inputMode = this.inputMode === 'barriers' ? 'stops' : 'barriers';
+    const mapEl = document.getElementById('map');
     if (this.inputMode === 'barriers') {
-      this.setStatus('請點擊地圖任意位置新增圓形屏障；再次點擊按鈕結束。', 'is-busy');
+      mapEl?.classList.add('map-cursor-barrier');
+      this.setStatus(typeof I18n !== 'undefined' ? I18n.t('routing.barrier_mode_active') : '請點擊地圖任意位置新增圓形屏障；再次點擊按鈕或按 Esc 結束。', 'is-busy');
       this.toggleAccordion('barriers');
     } else {
-      this.setStatus('已離開屏障新增模式。');
+      mapEl?.classList.remove('map-cursor-barrier');
+      this.setStatus(typeof I18n !== 'undefined' ? I18n.t('routing.barrier_mode_exited') : '已離開屏障新增模式。');
     }
     this.renderControls();
   },
 
   addBarrier(latlng) {
     if (this.barriers.length >= this.maxBarriers) {
-      window.App?.showToast(`屏障數量已達 ${this.maxBarriers} 個上限`, 'warning');
+      window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.max_barriers_reached', { max: this.maxBarriers }) : `屏障數量已達 ${this.maxBarriers} 個上限`, 'warning');
       this.inputMode = 'stops';
       this.renderControls();
       return;
@@ -575,7 +592,7 @@ window.RoutingManager = {
 
     const newBarrier = {
       id: this.generateId('rb'),
-      name: `屏障 #${this.barriers.length + 1}`,
+      name: typeof I18n !== 'undefined' ? I18n.t('routing.barrier_default_name', { id: this.barriers.length + 1 }) : `屏障 #${this.barriers.length + 1}`,
       lat: Number(latlng.lat),
       lng: Number(latlng.lng),
       radius,
@@ -586,7 +603,7 @@ window.RoutingManager = {
     this.markRouteOutdated();
     this.render();
     window.SafetyManager?.recordChange('新增路網屏障');
-    window.App?.showToast(`已新增 ${radius}m 圓形屏障`, 'success');
+    window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.barrier_added', { radius }) : `已新增 ${radius}m 圓形屏障`, 'success');
   },
 
   // =========================================================================
@@ -636,7 +653,7 @@ window.RoutingManager = {
     if (this.isBusy) return;
     const mode = this.getMode();
     if (mode !== 'open') {
-      window.App?.showToast('僅開放路徑支援設定終點', 'warning');
+      window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.open_mode_only_end') : '僅開放路徑支援設定終點', 'warning');
       return;
     }
     this.points.forEach(p => {
@@ -684,7 +701,7 @@ window.RoutingManager = {
     const end = this.getEndPoint();
 
     if (!start) {
-      window.App?.showToast('請先指定起點', 'warning');
+      window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.specify_start_first') : '請先指定起點', 'warning');
       return;
     }
 
@@ -701,7 +718,7 @@ window.RoutingManager = {
     this.points = newPoints;
     this.markRouteOutdated();
     this.render();
-    window.App?.showToast('已將起點移至首位、終點移至末位', 'success');
+    window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.fixed_start_end_notice') : '已將起點移至首位、終點移至末位', 'success');
     window.SafetyManager?.recordChange('調整起終點至清單首尾');
   },
 
@@ -718,7 +735,7 @@ window.RoutingManager = {
     this.markRouteOutdated();
     this.render();
     window.SafetyManager?.recordChange('反轉路網點位順序');
-    window.App?.showToast('點位順序已反轉', 'info');
+    window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.reversed_notice') : '點位順序已反轉', 'info');
   },
 
   removeDuplicatePoints() {
@@ -737,21 +754,25 @@ window.RoutingManager = {
       this.resetPointValidation();
       this.render();
       window.SafetyManager?.recordChange('移除重複路網點位');
-      window.App?.showToast(`已移除 ${removedCount} 個距離小於 1 公尺的重複點位`, 'success');
+      window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.duplicate_removed_notice', { count: removedCount }) : `已移除 ${removedCount} 個距離小於 1 公尺的重複點位`, 'success');
     } else {
-      window.App?.showToast('未發現距離小於 1 公尺的重複點位', 'info');
+      window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.no_duplicate_points') : '未發現距離小於 1 公尺的重複點位', 'info');
     }
   },
 
-  clearPoints() {
+  async clearPoints() {
     if (this.isBusy || !this.points.length) return;
-    if (!confirm('確定要清空所有分析點位嗎？')) return;
+    const confirmMsg = typeof I18n !== 'undefined'
+      ? I18n.t('routing.clear_points_confirm', '確定要清空所有分析點位嗎？')
+      : '確定要清空所有分析點位嗎？';
+    const confirmed = window.App?.confirm ? await window.App.confirm(confirmMsg, { isDanger: true }) : true;
+    if (!confirmed) return;
     this.points = [];
     this.markRouteOutdated();
     this.resetPointValidation();
     this.render();
     window.SafetyManager?.recordChange('清空路網點位');
-    window.App?.showToast('已清空全部分析點位', 'info');
+    window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.points_cleared_notice') : '已清空全部分析點位', 'info');
   },
 
   removePoint(pointId) {
@@ -763,7 +784,7 @@ window.RoutingManager = {
     this.resetPointValidation();
     this.render();
     window.SafetyManager?.recordChange(`刪除路網點位「${removed.name}」`);
-    window.App?.showToast(`已刪除「${removed.name}」`, 'info');
+    window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.point_deleted', { name: removed.name }) : `已刪除「${removed.name}」`, 'info');
   },
 
   locatePoint(pointId) {
@@ -836,7 +857,7 @@ window.RoutingManager = {
     this.markRouteOutdated();
     this.render();
     window.SafetyManager?.recordChange('刪除屏障');
-    window.App?.showToast('已刪除屏障', 'info');
+    window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.barrier_deleted') : '已刪除屏障', 'info');
   },
 
   toggleBarrierEnabled(barrierId) {
@@ -1712,6 +1733,28 @@ window.RoutingManager = {
       : '目前尚無有效道路分析路線。';
     previewNotice.appendChild(descDiv);
 
+    const actionsWrap = document.createElement('div');
+    actionsWrap.style.cssText = 'margin-top: 8px; display: flex; gap: 6px;';
+
+    const retryBtn = document.createElement('button');
+    retryBtn.type = 'button';
+    retryBtn.className = 'btn btn-primary btn-xs';
+    retryBtn.textContent = typeof I18n !== 'undefined' ? I18n.t('routing.retry_calc', '重試計算') : '重試計算';
+    retryBtn.onclick = () => {
+      this.calculateCurrentOrder();
+    };
+
+    const backSettingsBtn = document.createElement('button');
+    backSettingsBtn.type = 'button';
+    backSettingsBtn.className = 'btn btn-secondary btn-xs';
+    backSettingsBtn.textContent = typeof I18n !== 'undefined' ? I18n.t('routing.back_to_settings', '返回設定') : '返回設定';
+    backSettingsBtn.onclick = () => {
+      this.toggleAccordion('settings');
+    };
+
+    actionsWrap.append(retryBtn, backSettingsBtn);
+    previewNotice.appendChild(actionsWrap);
+
     if (this.currentRoute) {
       container.prepend(previewNotice);
     } else {
@@ -2361,19 +2404,19 @@ window.RoutingManager = {
 
   saveRoute() {
     if (this.isBusy || !this.currentRoute) {
-      window.App?.showToast('目前無可保存之分析路線', 'warning');
+      window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.no_route_to_save') : '目前無可保存之分析路線', 'warning');
       return;
     }
     if (this.routeIsOutdated) {
-      window.App?.showToast('分析條件已變更，路線已過期，請重新計算後再保存', 'warning');
+      window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.outdated_cannot_save') : '分析條件已變更，路線已過期，請重新計算後再保存', 'warning');
       return;
     }
     if (this.currentRoute.approximate) {
-      window.App?.showToast('直線近似預覽無法保存為正式道路成果', 'warning');
+      window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.straight_cannot_save') : '直線近似預覽無法保存為正式道路成果', 'warning');
       return;
     }
     if (this.currentRoute.barrierConflicts?.length > 0) {
-      window.App?.showToast('路線與屏障衝突中，禁止保存', 'error');
+      window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.conflict_cannot_save') : '路線與屏障衝突中，禁止保存', 'error');
       return;
     }
 
@@ -2388,7 +2431,7 @@ window.RoutingManager = {
     }
 
     if (!activeLayer) {
-      window.App?.showToast('無法建立或取得可編輯的線圖層', 'error');
+      window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.no_editable_layer') : '無法建立或取得可編輯的線圖層', 'error');
       return;
     }
 
@@ -2432,7 +2475,7 @@ window.RoutingManager = {
     LayerManager?.render();
     window.SafetyManager?.recordChange('保存路網分析結果');
 
-    window.App?.showToast(`路徑已成功保存至圖層「${activeLayer.name}」`, 'success');
+    window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.route_saved_to_layer', { name: activeLayer.name }) : `路徑已成功保存至圖層「${activeLayer.name}」`, 'success');
   },
 
   // =========================================================================
@@ -2454,7 +2497,11 @@ window.RoutingManager = {
 
     const bCount = this.barriers.length;
     const bCountEl = document.getElementById('routing-barrier-count');
-    if (bCountEl) bCountEl.textContent = `${bCount} / ${this.maxBarriers}`;
+    if (bCountEl) {
+      bCountEl.textContent = typeof I18n !== 'undefined'
+        ? I18n.t('routing.barrier_count_label', { current: bCount, max: this.maxBarriers })
+        : `屏障 ${bCount} / ${this.maxBarriers}`;
+    }
 
     if (window.lucide) window.lucide.createIcons();
   },
@@ -2473,20 +2520,59 @@ window.RoutingManager = {
     const barrierRadius = document.getElementById('routing-barrier-radius');
     const btnImport = document.getElementById('btn-routing-import-file');
 
-    if (btnCalcCurrent) btnCalcCurrent.disabled = isBusy || ptCount < 2;
-    if (btnOptimize) btnOptimize.disabled = isBusy || ptCount < 2;
-    if (btnCancel) btnCancel.hidden = !isBusy;
-    if (btnFixStartEnd) btnFixStartEnd.disabled = isBusy || ptCount < 2;
+    const insufficientTooltip = typeof I18n !== 'undefined'
+      ? I18n.t('routing.insufficient_points', '點位不足（至少需 2 個點位）')
+      : '點位不足（至少需 2 個點位）';
+
+    if (btnCalcCurrent) {
+      btnCalcCurrent.disabled = isBusy || ptCount < 2;
+      btnCalcCurrent.title = ptCount < 2
+        ? insufficientTooltip
+        : (typeof I18n !== 'undefined' ? I18n.t('routing.calc_current_title', '依目前清單排列順序計算路線') : '依目前清單排列順序計算路線');
+    }
+    if (btnOptimize) {
+      btnOptimize.disabled = isBusy || ptCount < 2;
+      btnOptimize.title = ptCount < 2
+        ? insufficientTooltip
+        : (typeof I18n !== 'undefined' ? I18n.t('routing.calc_optimize_title', '以本機 2-Opt 最佳化停靠順序並計算路線') : '以本機 2-Opt 最佳化停靠順序並計算路線');
+    }
+    if (btnCancel) {
+      btnCancel.hidden = !isBusy;
+      btnCancel.disabled = !isBusy;
+    }
+    if (btnFixStartEnd) {
+      btnFixStartEnd.disabled = isBusy || ptCount < 2;
+      btnFixStartEnd.title = ptCount < 2 ? insufficientTooltip : '';
+    }
     if (btnSave) {
-      btnSave.disabled = isBusy || !this.currentRoute || this.routeIsOutdated || Boolean(this.currentRoute.approximate) || Boolean(this.currentRoute.barrierConflicts?.length);
+      const isStraightPreview = Boolean(this.fallbackPreviewRoute);
+      const isOutdated = this.routeIsOutdated;
+      const hasConflicts = Boolean(this.currentRoute?.barrierConflicts?.length);
+      btnSave.disabled = isBusy || !this.currentRoute || isOutdated || isStraightPreview || hasConflicts;
+      if (isStraightPreview) {
+        btnSave.title = typeof I18n !== 'undefined'
+          ? I18n.t('routing.cannot_save_preview', '直線預覽不可儲存為正式路網圖層')
+          : '直線預覽不可儲存為正式路網圖層';
+      } else if (hasConflicts) {
+        btnSave.title = typeof I18n !== 'undefined'
+          ? I18n.t('routing.barrier_conflict_warning', '此屏障與目前路線相交')
+          : '此屏障與目前路線相交';
+      } else {
+        btnSave.title = '';
+      }
     }
     if (btnImport) btnImport.disabled = isBusy || ptCount >= this.maxPoints;
 
     if (btnAddBarrier) {
       btnAddBarrier.disabled = isBusy || (bCount >= this.maxBarriers && this.inputMode !== 'barriers');
       btnAddBarrier.classList.toggle('is-active', this.inputMode === 'barriers');
+      btnAddBarrier.classList.toggle('active', this.inputMode === 'barriers');
       const lbl = btnAddBarrier.querySelector('span');
-      if (lbl) lbl.textContent = this.inputMode === 'barriers' ? '完成新增' : '新增屏障';
+      if (lbl) {
+        lbl.textContent = this.inputMode === 'barriers'
+          ? (typeof I18n !== 'undefined' ? I18n.t('common.finish', '完成新增') : '完成新增')
+          : (typeof I18n !== 'undefined' ? I18n.t('routing.add_barrier', '新增屏障') : '新增屏障');
+      }
     }
     if (barrierRadius) barrierRadius.disabled = isBusy || this.inputMode === 'barriers';
   },
@@ -2803,6 +2889,18 @@ window.RoutingManager = {
       detail.textContent = `${barrier.lat.toFixed(5)}, ${barrier.lng.toFixed(5)}`;
       main.appendChild(detail);
 
+      const conflicts = this.currentRoute?.barrierConflicts || [];
+      const isConflict = conflicts.some(c => c.id === barrier.id);
+      if (isConflict) {
+        row.classList.add('has-conflict');
+        const conflictBadge = document.createElement('span');
+        conflictBadge.className = 'routing-conflict-badge';
+        conflictBadge.style.cssText = 'color: #dc2626; font-size: 0.65rem; font-weight: 700; margin-left: 4px;';
+        conflictBadge.textContent = typeof I18n !== 'undefined' ? I18n.t('routing.barrier_conflict_warning', '衝突') : '衝突';
+        conflictBadge.title = typeof I18n !== 'undefined' ? I18n.t('routing.barrier_conflict_warning', '此屏障與目前路線相交') : '此屏障與目前路線相交';
+        main.appendChild(conflictBadge);
+      }
+
       const radSelect = document.createElement('select');
       radSelect.style.cssText = 'padding: 2px 4px; font-size: 0.68rem; border: 1px solid #cbd5e1; border-radius: 4px;';
       [50, 100, 250, 500, 1000, 2000].forEach(r => {
@@ -2843,14 +2941,19 @@ window.RoutingManager = {
   // UTILITIES & HELPERS
   // =========================================================================
 
-  clear() {
+  async clear() {
     if (this.isBusy) return;
     if (!this.points.length && !this.barriers.length && !this.currentRoute) return;
-    if (!confirm('確定要清空所有點位、屏障及分析路線嗎？')) return;
+    const confirmMsg = typeof I18n !== 'undefined'
+      ? I18n.t('routing.clear_all_confirm', '確定要清空所有點位、屏障及分析路線嗎？')
+      : '確定要清空所有點位、屏障及分析路線嗎？';
+    const confirmed = window.App?.confirm ? await window.App.confirm(confirmMsg, { isDanger: true }) : true;
+    if (!confirmed) return;
 
     this.points = [];
     this.barriers = [];
     this.inputMode = 'stops';
+    document.getElementById('map')?.classList.remove('map-cursor-barrier');
     this.resetComputedRoute();
     this.resetPointValidation();
     if (this.markerLayer) this.markerLayer.clearLayers();

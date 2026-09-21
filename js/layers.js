@@ -57,7 +57,24 @@ window.LayerManager = {
     document.getElementById('btn-close-layers')?.addEventListener('click', () => this.hidePanel());
     document.getElementById('btn-add-layer')?.addEventListener('click', () => this.promptCreateLayer());
     document.getElementById('btn-add-group')?.addEventListener('click', () => this.promptCreateGroup());
-    document.getElementById('layer-search-input')?.addEventListener('input', (e) => this.render(e.target.value));
+    const searchInput = document.getElementById('layer-search-input');
+    const clearSearchBtn = document.getElementById('btn-clear-layer-search');
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        const val = e.target.value;
+        if (clearSearchBtn) clearSearchBtn.style.display = val ? 'inline-flex' : 'none';
+        this.render(val);
+      });
+    }
+    if (clearSearchBtn) {
+      clearSearchBtn.addEventListener('click', () => {
+        if (searchInput) {
+          searchInput.value = '';
+          clearSearchBtn.style.display = 'none';
+          this.render('');
+        }
+      });
+    }
     document.getElementById('btn-cancel-layer-editor')?.addEventListener('click', () => this.closeEditor());
     document.getElementById('btn-save-layer-editor')?.addEventListener('click', () => this.submitEditor());
     document.getElementById('btn-close-layer-editor')?.addEventListener('click', () => this.closeEditor());
@@ -100,7 +117,7 @@ window.LayerManager = {
       : (typeof I18n !== 'undefined' ? I18n.t('layers.save_selected_new', '另存選取圖元為新圖層') : '另存選取圖元為新圖層');
     const saveSelectedItem = this.createContextMenuItem('file-plus', saveSelectedText, () => {
       if (!hasSelection) {
-        App?.showToast('目前未選取任何圖元', 'warning');
+        App?.showToast(typeof I18n !== 'undefined' ? I18n.t('layers.no_selection_hint') : '目前未選取任何圖元', 'warning');
         return;
       }
       if (typeof GeoprocessingManager !== 'undefined') {
@@ -145,10 +162,14 @@ window.LayerManager = {
     
     this.contextMenu.classList.add('active');
     
-    // Adjust if goes out of screen
+    // Adjust if goes out of screen (auto-flip if near right or bottom edge)
     const rect = this.contextMenu.getBoundingClientRect();
-    if (x + rect.width > window.innerWidth) x = window.innerWidth - rect.width - 5;
-    if (y + rect.height > window.innerHeight) y = window.innerHeight - rect.height - 5;
+    if (x + rect.width > window.innerWidth - 8) {
+      x = Math.max(8, window.innerWidth - rect.width - 8);
+    }
+    if (y + rect.height > window.innerHeight - 8) {
+      y = Math.max(8, window.innerHeight - rect.height - 8);
+    }
     
     this.contextMenu.style.left = `${x}px`;
     this.contextMenu.style.top = `${y}px`;
@@ -189,9 +210,12 @@ window.LayerManager = {
     newLayer.featureGroup.addTo(App.map);
     
     this.layers.unshift(newLayer); // Add to top
-    if (!this.activeLayerId) this.activeLayerId = newLayer.id;
+    this.activeLayerId = newLayer.id; // Newly created layer is always set as active layer
     
     this.render();
+    if (typeof TableManager !== 'undefined' && TableManager.isOpen) {
+      TableManager.render();
+    }
     SafetyManager?.recordChange(`新增圖層: ${newLayer.name}`);
     return newLayer;
   },
@@ -213,31 +237,44 @@ window.LayerManager = {
     if (this.getLayer(id)) {
       this.activeLayerId = id;
       this.render();
+      if (typeof TableManager !== 'undefined' && TableManager.isOpen) {
+        TableManager.render();
+      }
     }
   },
 
-  deleteLayer(id) {
+  async deleteLayer(id) {
     const layer = this.getLayer(id);
     if (!layer) return;
     
     if (layer.locked) {
-      App.showToast('圖層已鎖定，無法刪除', 'error');
+      App?.showToast(typeof I18n !== 'undefined' ? I18n.t('layers.locked_cannot_delete') : '圖層已鎖定，無法刪除', 'error');
       return;
     }
 
-    if (!confirm(`確定要刪除圖層「${layer.name}」及其所有圖元嗎？`)) return;
+    const confirmMsg = typeof I18n !== 'undefined'
+      ? I18n.t('layers.delete_confirm', { name: layer.name })
+      : `確定要刪除圖層「${layer.name}」及其所有圖元嗎？刪除後可使用復原救回。`;
+
+    const confirmed = App?.confirm
+      ? await App.confirm(confirmMsg, { isDanger: true })
+      : true;
+    if (!confirmed) return;
 
     // Remove from map
-    if (App.map.hasLayer(layer.featureGroup)) {
+    if (App?.map && App.map.hasLayer(layer.featureGroup)) {
       App.map.removeLayer(layer.featureGroup);
     }
     
+    const wasActive = this.activeLayerId === id;
     this.layers = this.layers.filter(l => l.id !== id);
-    if (this.activeLayerId === id) this.activeLayerId = null;
+    if (wasActive) {
+      this.activeLayerId = this.layers.length > 0 ? this.layers[0].id : null;
+    }
     
     this.hideContextMenu();
     this.render();
-    App.updateStats();
+    App?.updateStats();
     TableManager?.render();
     SafetyManager?.recordChange(`刪除圖層: ${layer.name}`);
   },
@@ -317,17 +354,35 @@ window.LayerManager = {
     input.select();
   },
 
-  promptOpacity(id) {
+  async promptOpacity(id) {
     this.hideContextMenu();
     const layer = this.getLayer(id);
     if (!layer) return;
-    const opacityStr = prompt('請輸入透明度 (0 - 100):', Math.round(layer.opacity * 100));
+    const title = typeof I18n !== 'undefined' ? I18n.t('layers.opacity_title', '圖層透明度') : '圖層透明度';
+    const label = typeof I18n !== 'undefined' ? I18n.t('layers.opacity_label', '不透明度 (%)') : '不透明度 (%)';
+    const currentVal = Math.round(layer.opacity * 100);
+
+    let opacityStr;
+    if (App?.promptInput) {
+      opacityStr = await App.promptInput(title, label, currentVal, {
+        type: 'number',
+        slider: true,
+        min: 0,
+        max: 100,
+        validate: (val) => {
+          const num = parseInt(val, 10);
+          if (isNaN(num) || num < 0 || num > 100) {
+            return typeof I18n !== 'undefined' ? I18n.t('layers.opacity_range_error', '透明度必須介於 0 到 100 之間') : '透明度必須介於 0 到 100 之間';
+          }
+          return null;
+        }
+      });
+    }
+    if (opacityStr === null || opacityStr === undefined) return;
     const opacity = parseInt(opacityStr, 10);
     if (!isNaN(opacity) && opacity >= 0 && opacity <= 100) {
       layer.opacity = opacity / 100;
-      
       this.applyLayerOpacity(layer);
-      
       this.render();
       SafetyManager?.recordChange(`調整圖層透明度: ${layer.name}`);
     }
@@ -337,7 +392,7 @@ window.LayerManager = {
     this.hideContextMenu();
     const layer = this.getLayer(id);
     if (!layer || layer.featureGroup.getLayers().length === 0) {
-      App.showToast('圖層尚無圖元可定位', 'info');
+      App.showToast(typeof I18n !== 'undefined' ? I18n.t('layers.no_features_to_zoom') : '圖層尚無圖元可定位', 'info');
       return;
     }
     if (!layer.visible) this.toggleVisibility(id);
@@ -367,8 +422,8 @@ window.LayerManager = {
       : (typeof I18n !== 'undefined' ? I18n.t('layers.new_layer_default', '新增圖層') : '新增圖層');
     document.getElementById('layer-editor-options').hidden = mode === 'group';
     const groupSelect = document.getElementById('layer-editor-group');
-    // Category A: Static dropdown default option template
-    groupSelect.innerHTML = '<option value="">不加入群組</option>';
+    const noGroupText = typeof I18n !== 'undefined' ? I18n.t('layers.no_group', '不加入群組') : '不加入群組';
+    groupSelect.replaceChildren(new Option(noGroupText, ''));
     this.groups.forEach(group => groupSelect.add(new Option(group.name, group.id)));
     modal.classList.add('active');
     setTimeout(() => document.getElementById('layer-editor-name')?.focus(), 0);
@@ -382,7 +437,7 @@ window.LayerManager = {
     const modal = document.getElementById('layer-editor-modal');
     const name = document.getElementById('layer-editor-name')?.value.trim();
     if (!name) {
-      App.showToast('請輸入名稱', 'warning');
+      App.showToast(typeof I18n !== 'undefined' ? I18n.t('layers.please_enter_name') : '請輸入名稱', 'warning');
       return;
     }
     if (modal.dataset.mode === 'group') {
@@ -411,10 +466,14 @@ window.LayerManager = {
     this.render(document.getElementById('layer-search-input')?.value || '');
   },
 
-  deleteGroup(id) {
+  async deleteGroup(id) {
     const group = this.groups.find(item => item.id === id);
     if (!group) return;
-    if (!confirm(`確定移除群組「${group.name}」嗎？圖層會保留。`)) return;
+    const confirmMsg = typeof I18n !== 'undefined'
+      ? I18n.t('layers.delete_group_confirm', { name: group.name })
+      : `確定要移除群組「${group.name}」嗎？圖層會保留。`;
+    const confirmed = App?.confirm ? await App.confirm(confirmMsg, { isDanger: true }) : true;
+    if (!confirmed) return;
     this.layers.forEach(layer => { if (layer.groupId === id) layer.groupId = null; });
     this.groups = this.groups.filter(item => item.id !== id);
     this.render();
@@ -512,20 +571,66 @@ window.LayerManager = {
     this.treeContainer.innerHTML = '';
     
     if (this.layers.length === 0 && this.groups.length === 0) {
-      const emptyText = typeof I18n !== 'undefined' ? I18n.t('layers.no_layers', '尚無圖層') : '尚無圖層';
-      this.treeContainer.innerHTML = `<div style="padding: 16px; color: #64748b; text-align: center; font-size: 0.85rem;">${emptyText}</div>`;
+      const emptyContainer = document.createElement('div');
+      emptyContainer.className = 'layer-empty-state';
+
+      const text = document.createElement('p');
+      text.className = 'layer-empty-text';
+      text.textContent = typeof I18n !== 'undefined'
+        ? I18n.t('layers.empty_hint', '尚無圖層。請新增空白圖層、匯入檔案，或直接在地圖上繪製。')
+        : '尚無圖層。請新增空白圖層、匯入檔案，或直接在地圖上繪製。';
+      emptyContainer.appendChild(text);
+
+      const actions = document.createElement('div');
+      actions.className = 'layer-empty-actions';
+
+      const btnAdd = document.createElement('button');
+      btnAdd.type = 'button';
+      btnAdd.className = 'btn btn-primary btn-sm';
+      btnAdd.innerHTML = '<i data-lucide="plus-square" style="width: 14px; height: 14px;"></i><span></span>';
+      const addSpan = btnAdd.querySelector('span');
+      if (addSpan) {
+        addSpan.textContent = typeof I18n !== 'undefined'
+          ? I18n.t('layers.empty_add_layer', '新增圖層')
+          : '新增圖層';
+      }
+      btnAdd.addEventListener('click', () => this.promptCreateLayer());
+
+      const btnImport = document.createElement('button');
+      btnImport.type = 'button';
+      btnImport.className = 'btn btn-secondary btn-sm';
+      btnImport.innerHTML = '<i data-lucide="upload" style="width: 14px; height: 14px;"></i><span></span>';
+      const importSpan = btnImport.querySelector('span');
+      if (importSpan) {
+        importSpan.textContent = typeof I18n !== 'undefined'
+          ? I18n.t('layers.empty_import', '匯入檔案')
+          : '匯入檔案';
+      }
+      btnImport.addEventListener('click', () => {
+        document.getElementById('btn-open-import')?.click();
+      });
+
+      actions.append(btnAdd, btnImport);
+      emptyContainer.appendChild(actions);
+      this.treeContainer.appendChild(emptyContainer);
+
+      if (typeof lucide !== 'undefined') {
+        lucide.createIcons({ root: emptyContainer });
+      }
       return;
     }
 
     const ft = filterText.toLowerCase();
+    let renderedCount = 0;
 
     const appendLayer = (layer, index, grouped = false) => {
       if (ft && !layer.name.toLowerCase().includes(ft)) return;
+      renderedCount++;
 
       const node = document.createElement('div');
       node.className = 'layer-tree-node';
       
-      const count = layer.featureGroup.getLayers().length;
+      const count = layer.featureGroup?.getLayers ? layer.featureGroup.getLayers().length : 0;
       const isVisible = layer.visible;
       const isLocked = layer.locked;
       const isActive = layer.id === this.activeLayerId;
@@ -536,14 +641,17 @@ window.LayerManager = {
       if (layer.geometryType === 'Polygon') geometryIcon = 'square';
 
       const row = document.createElement('div');
-      row.className = `layer-row ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''}`;
+      row.className = `layer-row ${isActive ? 'active' : ''} ${isLocked ? 'locked' : ''} ${!isVisible ? 'is-hidden-layer' : ''}`;
       row.dataset.layerId = layer.id;
+      if (isLocked) {
+        row.title = typeof I18n !== 'undefined' ? I18n.t('layers.locked_badge', '已鎖定') : '已鎖定';
+      }
       if (grouped) row.style.paddingLeft = '22px';
       row.draggable = true; // For reordering
       
       // Click to set active
       row.addEventListener('click', (e) => {
-        if (e.target.closest('button')) return; // Ignore button clicks
+        if (e.target.closest('button') || e.target.closest('input')) return; // Ignore button and input clicks
         this.setActiveLayer(layer.id);
       });
 
@@ -551,7 +659,9 @@ window.LayerManager = {
       const visBtn = document.createElement('button');
       visBtn.className = 'icon-button';
       visBtn.style.padding = '2px';
-      visBtn.title = isVisible ? '隱藏' : '顯示';
+      visBtn.title = isVisible
+        ? (typeof I18n !== 'undefined' ? I18n.t('common.hide', '隱藏') : '隱藏')
+        : (typeof I18n !== 'undefined' ? I18n.t('common.show', '顯示') : '顯示');
       visBtn.innerHTML = `<i data-lucide="${isVisible ? 'eye' : 'eye-off'}" style="width: 14px; height: 14px; color: ${isVisible ? '#334155' : '#94a3b8'};"></i>`;
       visBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -560,7 +670,16 @@ window.LayerManager = {
 
       const iconDiv = document.createElement('div');
       iconDiv.className = 'layer-row-icon';
-      iconDiv.title = `幾何類型: ${layer.geometryType}`;
+      let geomLabel = layer.geometryType;
+      if (typeof I18n !== 'undefined' && I18n.t) {
+        if (layer.geometryType === 'Point') geomLabel = I18n.t('layers.geom_point', '點 (Point)');
+        else if (layer.geometryType === 'Line') geomLabel = I18n.t('layers.geom_line', '線 (Line)');
+        else if (layer.geometryType === 'Polygon') geomLabel = I18n.t('layers.geom_polygon', '多邊形 (Polygon)');
+        else geomLabel = I18n.t('layers.geom_any', '不拘 (Any)');
+        iconDiv.title = I18n.t('layers.geometry_type_label', { type: geomLabel });
+      } else {
+        iconDiv.title = `幾何類型: ${layer.geometryType}`;
+      }
       iconDiv.innerHTML = `<i data-lucide="${geometryIcon}" style="width: 12px; height: 12px; color: #64748b;"></i>`;
 
       const labelDiv = document.createElement('div');
@@ -578,7 +697,9 @@ window.LayerManager = {
       const lockBtn = document.createElement('button');
       lockBtn.className = 'icon-button';
       lockBtn.style.padding = '2px';
-      lockBtn.title = isLocked ? '解除鎖定' : '鎖定';
+      lockBtn.title = isLocked
+        ? (typeof I18n !== 'undefined' ? I18n.t('layers.unlock', '解除鎖定') : '解除鎖定')
+        : (typeof I18n !== 'undefined' ? I18n.t('layers.lock', '鎖定') : '鎖定');
       lockBtn.innerHTML = `<i data-lucide="${isLocked ? 'lock' : 'unlock'}" style="width: 12px; height: 12px; color: ${isLocked ? '#dc2626' : '#94a3b8'};"></i>`;
       lockBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -588,7 +709,7 @@ window.LayerManager = {
       const moreBtn = document.createElement('button');
       moreBtn.className = 'icon-button btn-layer-more';
       moreBtn.style.padding = '2px';
-      moreBtn.title = '更多選項';
+      moreBtn.title = typeof I18n !== 'undefined' ? I18n.t('common.more_options', '更多選項') : '更多選項';
       moreBtn.innerHTML = '<i data-lucide="more-vertical" style="width: 14px; height: 14px;"></i>';
       moreBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -607,20 +728,21 @@ window.LayerManager = {
       row.addEventListener('dragover', (e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
-        row.style.borderTop = '2px solid #3b82f6';
+        row.classList.add('is-drag-over');
       });
       row.addEventListener('dragleave', () => {
-        row.style.borderTop = '';
+        row.classList.remove('is-drag-over');
       });
       row.addEventListener('drop', (e) => {
         e.preventDefault();
-        row.style.borderTop = '';
+        row.classList.remove('is-drag-over');
         if (this.draggedNodeId && this.draggedNodeId !== layer.id) {
           this.reorderLayer(this.draggedNodeId, layer.id);
         }
       });
       row.addEventListener('dragend', () => {
         row.style.opacity = '1';
+        row.classList.remove('is-drag-over');
         this.draggedNodeId = null;
       });
 
@@ -630,14 +752,19 @@ window.LayerManager = {
 
     this.groups.forEach(group => {
       const children = this.layers.filter(layer => layer.groupId === group.id);
-      if (ft && !group.name.toLowerCase().includes(ft) && !children.some(layer => layer.name.toLowerCase().includes(ft))) return;
+      const groupMatch = !ft || group.name.toLowerCase().includes(ft) || children.some(layer => layer.name.toLowerCase().includes(ft));
+      if (!groupMatch) return;
+      renderedCount++;
+
       const header = document.createElement('div');
       header.className = 'layer-group-row';
       header.style.cssText = 'display:flex;align-items:center;gap:6px;padding:7px 8px;background:#f1f5f9;border-bottom:1px solid #e2e8f0;font-weight:700;font-size:.82rem;';
 
       const toggleBtn = document.createElement('button');
       toggleBtn.className = 'icon-button';
-      toggleBtn.title = group.collapsed ? '展開' : '收合';
+      toggleBtn.title = group.collapsed
+        ? (typeof I18n !== 'undefined' ? I18n.t('common.expand', '展開') : '展開')
+        : (typeof I18n !== 'undefined' ? I18n.t('common.collapse', '收合') : '收合');
       toggleBtn.innerHTML = `<i data-lucide="${group.collapsed ? 'chevron-right' : 'chevron-down'}" style="width:13px;height:13px"></i>`;
       toggleBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -655,7 +782,7 @@ window.LayerManager = {
 
       const delBtn = document.createElement('button');
       delBtn.className = 'icon-button';
-      delBtn.title = '移除群組';
+      delBtn.title = typeof I18n !== 'undefined' ? I18n.t('layers.remove_group', '移除群組') : '移除群組';
       delBtn.innerHTML = '<i data-lucide="x" style="width:13px;height:13px"></i>';
       delBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -671,35 +798,71 @@ window.LayerManager = {
     if (this.groups.length && ungrouped.length) {
       const label = document.createElement('div');
       label.style.cssText = 'padding:5px 10px;color:#64748b;font-size:.72rem;font-weight:700;border-bottom:1px solid #e2e8f0';
-      label.textContent = `未分組 (${ungrouped.length})`;
+      label.textContent = typeof I18n !== 'undefined'
+        ? I18n.t('layers.ungrouped_label', { count: ungrouped.length })
+        : `未分組 (${ungrouped.length})`;
       this.treeContainer.appendChild(label);
     }
     ungrouped.forEach(layer => appendLayer(layer, this.layers.indexOf(layer), false));
+
+    if (ft && renderedCount === 0) {
+      const emptyEl = document.createElement('div');
+      emptyEl.className = 'layer-search-empty';
+      const p = document.createElement('p');
+      p.textContent = typeof I18n !== 'undefined'
+        ? I18n.t('layers.no_search_results', { query: filterText })
+        : `查無符合「${filterText}」的圖層或群組`;
+      emptyEl.appendChild(p);
+
+      const clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'btn btn-secondary btn-sm';
+      clearBtn.style.marginTop = '8px';
+      clearBtn.textContent = typeof I18n !== 'undefined'
+        ? I18n.t('layers.clear_search', '清除搜尋')
+        : '清除搜尋';
+      clearBtn.addEventListener('click', () => {
+        const searchInput = document.getElementById('layer-search-input');
+        if (searchInput) searchInput.value = '';
+        const clearIcon = document.getElementById('btn-clear-layer-search');
+        if (clearIcon) clearIcon.style.display = 'none';
+        this.render('');
+      });
+      emptyEl.appendChild(clearBtn);
+      this.treeContainer.appendChild(emptyEl);
+    }
 
     if (typeof lucide !== 'undefined') lucide.createIcons({ root: this.treeContainer });
   },
 
   reorderLayer(draggedId, targetId) {
+    const target = this.getLayer(targetId);
     const draggedIdx = this.layers.findIndex(l => l.id === draggedId);
     const targetIdx = this.layers.findIndex(l => l.id === targetId);
     if (draggedIdx > -1 && targetIdx > -1) {
       const [draggedLayer] = this.layers.splice(draggedIdx, 1);
-      // Insert at new position
+      if (target) {
+        draggedLayer.groupId = target.groupId;
+      }
       this.layers.splice(targetIdx, 0, draggedLayer);
       this.updateMapZIndex();
-      this.render();
+      const currentQuery = document.getElementById('layer-search-input')?.value || '';
+      this.render(currentQuery);
       SafetyManager?.recordChange(`調整圖層排序`);
     }
   },
 
   updateMapZIndex() {
+    if (!App?.map) return;
     // Leaflet vector layers Z-index can be controlled by bringing to front/back.
     // Layers array is top-to-bottom in UI, so index 0 is on top.
     // We reverse iterate to bring to front so index 0 ends up on very top.
     for (let i = this.layers.length - 1; i >= 0; i--) {
       const layer = this.layers[i];
-      if (App.map.hasLayer(layer.featureGroup)) {
-        layer.featureGroup.bringToFront();
+      if (layer?.featureGroup && typeof App.map.hasLayer === 'function' && App.map.hasLayer(layer.featureGroup)) {
+        if (typeof layer.featureGroup.bringToFront === 'function') {
+          layer.featureGroup.bringToFront();
+        }
       }
     }
   },

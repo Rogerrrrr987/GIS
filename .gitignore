@@ -9,7 +9,8 @@ Desktop.ini
 *.log
 *.tmp
 node_modules/
+.playwright-cli/
+output/playwright/
 
 # User-created GeoCanvas work files may contain private GIS data
 *.gcp.json
-

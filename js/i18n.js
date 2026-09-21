@@ -44,6 +44,9 @@
       'common.kilometers': '公里',
       'common.features_unit': '個圖元',
       'common.points_unit': '個點位',
+      'common.confirm_title': '操作確認',
+      'common.input_title': '請輸入',
+      'common.confirm': '確定',
 
       // App Header & Branding
       'app.title': 'GeoCanvas GIS',
@@ -54,6 +57,7 @@
       'header.open_project': '開啟專案',
       'header.undo': '復原',
       'header.redo': '重做',
+      'header.support': '支持開發',
       'header.import_data': '匯入圖資',
       'header.import_data_title': '匯入 KML / SHP / CSV / GeoJSON',
       'header.export_data': '匯出圖資',
@@ -89,6 +93,7 @@
       'style.export_selected': '匯出選取',
       'style.export_format_title': '選取圖元匯出格式',
       'style.delete': '刪除',
+      'style.delete_confirm': '確定要刪除選取的 {count} 個圖元嗎？',
       'style.select_by_location': '依位置選取',
       'style.snap': '吸附',
       'style.tolerance': '容差',
@@ -122,6 +127,19 @@
       'layers.lock_toggle': '切換圖層鎖定',
       'layers.opacity_title': '圖層透明度',
       'layers.count_badge': '{count} 個圖元',
+      'layers.empty_hint': '尚無圖層。請新增空白圖層、匯入檔案，或直接在地圖上繪製。',
+      'layers.empty_add_layer': '新增圖層',
+      'layers.empty_import': '匯入檔案',
+      'layers.no_search_results': '查無符合「{query}」的圖層或群組',
+      'layers.clear_search': '清除搜尋',
+      'layers.active_badge': '作用中',
+      'layers.locked_badge': '已鎖定',
+      'layers.set_active': '設為作用圖層',
+      'layers.delete_confirm': '確定要刪除圖層「{name}」及其所有圖元嗎？刪除後可使用復原救回。',
+      'layers.delete_group_confirm': '確定要移除群組「{name}」嗎？圖層會保留。',
+      'layers.opacity_label': '不透明度 (%)',
+      'layers.rename_title': '重新命名圖層',
+      'layers.rename_label': '圖層新名稱',
 
       // Data Catalog
       'catalog.title': '資料目錄',
@@ -130,6 +148,15 @@
       'catalog.recent_files': '最近呼叫',
       'catalog.privacy_note': '為保護隱私，請透過「選擇電腦檔案」授權要匯入的檔案。',
       'catalog.no_files': '尚無最近檔案記錄',
+
+      // Support Development
+      'support.title': '支持 GeoCanvas 開發',
+      'support.close_title': '收合支持開發面板',
+      'support.heading': '喜歡 GeoCanvas GIS 嗎？',
+      'support.description': '如果這個本機 GIS 工具對你有幫助，歡迎自願支持後續開發、測試與維護。',
+      'support.action': '前往 Buy Me a Coffee',
+      'support.privacy': '付款將在 Buy Me a Coffee 網站完成；GeoCanvas 不會接收或保存付款資料。',
+      'support.voluntary': '支持完全自願，未贊助仍可使用全部功能。',
 
       // Basemap Selector
       'basemap.title': '底圖',
@@ -177,6 +204,21 @@
       'table.col_actions': '操作',
       'table.locate': '定位',
       'table.empty': '目前圖層無資料',
+      'table.active_layer_label': '目前圖層',
+      'table.select_layer': '選擇圖層...',
+      'table.showing_count': '顯示 {shown} / {total} 筆',
+      'table.advanced_query': '進階查詢',
+      'table.hide_query': '收合查詢',
+      'table.clear_all_filters': '清除所有條件',
+      'table.page_prev': '上一頁',
+      'table.page_next': '下一頁',
+      'table.page_info': '第 {page} / {totalPages} 頁',
+      'table.add_col_title': '新增屬性欄位',
+      'table.add_col_label': '欄位名稱',
+      'table.edit_cell_title': '編輯儲存格屬性',
+      'table.delete_feature_confirm': '確定要刪除此圖元嗎？刪除後可使用復原救回。',
+      'table.clear_canvas_confirm': '確定要清空畫布上的所有圖元嗎？清空後可使用「復原」救回。',
+      'table.delete_selected_confirm': '確定要刪除選取的 {count} 個圖元嗎？刪除後可使用復原救回。',
 
       // Status Bar
       'statusbar.coords': '經緯度: {lat}, {lng}',
@@ -244,6 +286,20 @@
       'routing.role_start': '起點',
       'routing.role_stop': '停靠點',
       'routing.role_end': '終點',
+      'routing.step1_title': '步驟 1：加入分析點',
+      'routing.step2_title': '步驟 2：設定起點、終點與停靠點',
+      'routing.step3_title': '步驟 3：加入圓形屏障（選用）',
+      'routing.step4_title': '步驟 4：設定服務與交通模式',
+      'routing.step5_title': '步驟 5：計算與查看結果',
+      'routing.insufficient_points': '點位不足（至少需 2 個點位）',
+      'routing.need_start_end': '開放路徑模式需包含起點與終點',
+      'routing.need_start': '環狀路徑模式需包含起點',
+      'routing.barrier_count_label': '屏障 {current} / {max}',
+      'routing.clear_all_confirm': '確定要清空所有點位、屏障及分析路線嗎？',
+      'routing.clear_points_confirm': '確定要清空所有分析點位嗎？',
+      'routing.barrier_conflict_warning': '此屏障與目前路線相交',
+      'routing.retry_calc': '重試計算',
+      'routing.back_to_settings': '返回設定',
 
       // TGOS Locator Panel
       'tgos.title': 'TGOS 地址定位',
@@ -470,7 +526,80 @@
       'modal.wmts_opt_photo': 'PHOTO2 - 國土測繪正射影像航照圖',
       'modal.wmts_opt_photo_mix': 'PHOTO_MIX - 正射影像與電子地圖混合圖',
       'modal.wmts_opt_land': 'LAND_OPENDATA - 國土測繪地籍圖 (透明疊加)',
-      'modal.wmts_opt_b5000': 'B5000 - 1/5000 圖名圖幅圖'
+      'modal.wmts_opt_b5000': 'B5000 - 1/5000 圖名圖幅圖',
+
+      // Phase 2 Defect Fix Additions
+      'layers.default_layer_name': '工作圖層',
+      'layers.ungrouped_label': '未分組 ({count})',
+      'layers.geometry_type_label': '幾何類型: {type}',
+      'layers.geom_point': '點 (Point)',
+      'layers.geom_line': '線 (Line)',
+      'layers.geom_polygon': '多邊形 (Polygon)',
+      'layers.geom_any': '不拘 (Any)',
+      'layers.locked_cannot_delete': '圖層已鎖定，無法刪除',
+      'layers.no_features_to_zoom': '圖層尚無圖元可定位',
+      'layers.please_enter_name': '請輸入名稱',
+      'layers.locked_draw_error': '作用中圖層已鎖定，無法新增圖元',
+      'layers.locked_edit_error': '圖層已鎖定，無法編輯屬性',
+      'layers.locked_delete_feature_error': '圖層已鎖定，無法刪除圖元',
+
+      'catalog.empty_hint': '尚未呼叫任何資料。選擇電腦檔案後會顯示於此。',
+      'catalog.source_local': '本機檔案',
+      'catalog.reselect_file': '重新選擇「{name}」',
+
+      'statusbar.feature_count_detailed': '圖元總數: {count} (點: {points}, 線: {lines}, 面: {polys})',
+      'statusbar.feature_count_simple': '圖元總數: {count}',
+
+      'routing.barrier_mode_active': '請點擊地圖任意位置新增圓形屏障；再次點擊按鈕或按 Esc 結束。',
+      'routing.barrier_mode_exited': '已離開屏障新增模式。',
+      'routing.click_map_add_points': '在地圖上依序點擊加入起點、停靠點與終點；或由上方按鈕匯入點位。',
+      'routing.max_points_reached': '分析點位已達 {max} 點上限',
+      'routing.max_barriers_reached': '屏障數量已達 {max} 個上限',
+      'routing.barrier_added': '已新增 {radius}m 圓形屏障',
+      'routing.open_mode_only_end': '僅開放路徑支援設定終點',
+      'routing.specify_start_first': '請先指定起點',
+      'routing.fixed_start_end_notice': '已將起點移至首位、終點移至末位',
+      'routing.reversed_notice': '點位順序已反轉',
+      'routing.duplicate_removed_notice': '已移除 {count} 個重複點位',
+      'routing.no_duplicate_points': '未發現重複點位',
+      'routing.points_cleared_notice': '已清空所有點位',
+      'routing.barriers_cleared_notice': '已清空所有屏障',
+      'routing.conflict_cannot_save': '路線與屏障衝突中，禁止保存',
+      'routing.outdated_cannot_save': '分析條件已變更，路線已過期，請重新計算後再保存',
+      'routing.straight_cannot_save': '直線近似預覽無法保存為正式道路成果',
+      'routing.no_route_to_save': '目前無可保存之分析路線',
+      'routing.no_editable_layer': '無法建立或取得可編輯的線圖層',
+      'routing.route_saved_to_layer': '路徑已成功保存至圖層「{name}」',
+
+      'selection.location_title': '空間位置選取',
+      'selection.relation_prompt': '請輸入空間關係 (intersect / within)，預設為 intersect',
+      'selection.invalid_relation': '無效的空間關係',
+      'selection.buffer_title': '環域距離',
+      'selection.buffer_prompt': '請輸入環域距離(公尺)，若為 0 則不進行環域',
+      'selection.select_target_first': '請先選擇目標圖層',
+
+      'table.selected_filtered_toast': '已選取 {count} 個符合條件的圖元',
+      'table.no_matching_features': '沒有符合條件的圖元',
+      'table.feature_deleted': '已刪除圖元',
+      'table.cell_updated': '已更新「{key}」屬性',
+      'table.column_added': '已在 {count} 個圖元新增欄位「{name}」',
+      'table.no_features_to_add_col': '目前圖層尚無圖元可新增屬性！',
+
+      'common.no_features_on_map': '目前地圖上沒有圖元',
+      'common.unknown': '未知',
+      'classify.no_numeric_fields': '畫布上沒有包含數值屬性的圖元。請先在屬性資料表新增數值！',
+      'draw.prompt_feature_name': '請輸入圖元名稱:',
+      'draw.prompt_feature_desc': '請輸入圖元描述或備註:',
+      'tgos.added_to_working_layer': 'TGOS 地址點已加入工作圖層',
+      'style.selected_count': '已選取 {count} 個',
+      'style.point_symbol_only_marker': '僅適用於點位圖元',
+      'layers.no_active_layer_error': '無作用中圖層，無法新增圖元',
+      'layers.no_group': '不加入群組',
+      'statusbar.feature_count_details': '圖元總數: {count} (點: {points}, 線: {lines}, 面: {polys})',
+      'routing.point_default_name': '點位 {id}',
+      'routing.barrier_default_name': '屏障 #{id}',
+      'routing.barrier_deleted': '已刪除屏障',
+      'routing.point_deleted': '已刪除「{name}」'
     },
 
     'en': {
@@ -496,6 +625,9 @@
       'common.kilometers': 'km',
       'common.features_unit': 'features',
       'common.points_unit': 'points',
+      'common.confirm_title': 'Confirmation',
+      'common.input_title': 'Input',
+      'common.confirm': 'Confirm',
 
       // App Header & Branding
       'app.title': 'GeoCanvas GIS',
@@ -506,6 +638,7 @@
       'header.open_project': 'Open Project',
       'header.undo': 'Undo',
       'header.redo': 'Redo',
+      'header.support': 'Support Development',
       'header.import_data': 'Import Data',
       'header.import_data_title': 'Import KML / SHP / CSV / GeoJSON',
       'header.export_data': 'Export Data',
@@ -541,6 +674,7 @@
       'style.export_selected': 'Export Selected',
       'style.export_format_title': 'Selected features export format',
       'style.delete': 'Delete',
+      'style.delete_confirm': 'Are you sure you want to delete the selected {count} feature(s)?',
       'style.select_by_location': 'Select by Location',
       'style.snap': 'Snapping',
       'style.tolerance': 'Tolerance',
@@ -574,6 +708,19 @@
       'layers.lock_toggle': 'Toggle lock',
       'layers.opacity_title': 'Layer opacity',
       'layers.count_badge': '{count} features',
+      'layers.empty_hint': 'No layers yet. Please add a blank layer, import files, or draw directly on the map.',
+      'layers.empty_add_layer': 'Add Layer',
+      'layers.empty_import': 'Import File',
+      'layers.no_search_results': 'No layers or groups match "{query}"',
+      'layers.clear_search': 'Clear search',
+      'layers.active_badge': 'Active',
+      'layers.locked_badge': 'Locked',
+      'layers.set_active': 'Set as Active',
+      'layers.delete_confirm': 'Are you sure you want to delete layer "{name}" and all its features? This can be undone.',
+      'layers.delete_group_confirm': 'Are you sure you want to remove group "{name}"? Layers will be preserved.',
+      'layers.opacity_label': 'Opacity (%)',
+      'layers.rename_title': 'Rename Layer',
+      'layers.rename_label': 'New Layer Name',
 
       // Data Catalog
       'catalog.title': 'Data Catalog',
@@ -582,6 +729,15 @@
       'catalog.recent_files': 'Recent Files',
       'catalog.privacy_note': 'For privacy, please authorize files to import via "Select Local Files".',
       'catalog.no_files': 'No recent files recorded',
+
+      // Support Development
+      'support.title': 'Support GeoCanvas Development',
+      'support.close_title': 'Close support panel',
+      'support.heading': 'Enjoying GeoCanvas GIS?',
+      'support.description': 'If this local GIS tool is useful to you, you can voluntarily support its continued development, testing, and maintenance.',
+      'support.action': 'Visit Buy Me a Coffee',
+      'support.privacy': 'Payment is completed on Buy Me a Coffee. GeoCanvas does not receive or store payment information.',
+      'support.voluntary': 'Support is entirely optional. Every feature remains available without payment.',
 
       // Basemap Selector
       'basemap.title': 'Basemap',
@@ -629,6 +785,21 @@
       'table.col_actions': 'Actions',
       'table.locate': 'Locate',
       'table.empty': 'No data in current layer',
+      'table.active_layer_label': 'Active Layer',
+      'table.select_layer': 'Select Layer...',
+      'table.showing_count': 'Showing {shown} / {total} features',
+      'table.advanced_query': 'Advanced Query',
+      'table.hide_query': 'Hide Query',
+      'table.clear_all_filters': 'Clear All Filters',
+      'table.page_prev': 'Previous',
+      'table.page_next': 'Next',
+      'table.page_info': 'Page {page} of {totalPages}',
+      'table.add_col_title': 'Add Attribute Column',
+      'table.add_col_label': 'Column Name',
+      'table.edit_cell_title': 'Edit Cell Property',
+      'table.delete_feature_confirm': 'Are you sure you want to delete this feature? This can be undone.',
+      'table.clear_canvas_confirm': 'Are you sure you want to clear all features? This can be undone.',
+      'table.delete_selected_confirm': 'Are you sure you want to delete the {count} selected features? This can be undone.',
 
       // Status Bar
       'statusbar.coords': 'Coords: {lat}, {lng}',
@@ -696,6 +867,20 @@
       'routing.role_start': 'Start',
       'routing.role_stop': 'Stop',
       'routing.role_end': 'End',
+      'routing.step1_title': 'Step 1: Add Analysis Points',
+      'routing.step2_title': 'Step 2: Set Roles (Start / End / Stops)',
+      'routing.step3_title': 'Step 3: Add Barriers (Optional)',
+      'routing.step4_title': 'Step 4: Service & Travel Profile',
+      'routing.step5_title': 'Step 5: Calculate & View Results',
+      'routing.insufficient_points': 'Insufficient points (minimum 2 points required)',
+      'routing.need_start_end': 'Open route mode requires both start and end points',
+      'routing.need_start': 'Roundtrip mode requires a start point',
+      'routing.barrier_count_label': 'Barriers {current} / {max}',
+      'routing.clear_all_confirm': 'Are you sure you want to clear all points, barriers, and routes?',
+      'routing.clear_points_confirm': 'Are you sure you want to clear all analysis points?',
+      'routing.barrier_conflict_warning': 'This barrier intersects the current route',
+      'routing.retry_calc': 'Retry Calculation',
+      'routing.back_to_settings': 'Back to Settings',
 
       // TGOS Locator Panel
       'tgos.title': 'TGOS Geocoding',
@@ -922,7 +1107,80 @@
       'modal.wmts_opt_photo': 'PHOTO2 - Aerial Orthophoto',
       'modal.wmts_opt_photo_mix': 'PHOTO_MIX - Hybrid Orthophoto & Map',
       'modal.wmts_opt_land': 'LAND_OPENDATA - Cadastral Map (Overlay)',
-      'modal.wmts_opt_b5000': 'B5000 - 1/5000 Map Sheets'
+      'modal.wmts_opt_b5000': 'B5000 - 1/5000 Map Sheets',
+
+      // Phase 2 Defect Fix Additions
+      'layers.default_layer_name': 'Working Layer',
+      'layers.ungrouped_label': 'Ungrouped ({count})',
+      'layers.geometry_type_label': 'Geometry: {type}',
+      'layers.geom_point': 'Point',
+      'layers.geom_line': 'Line',
+      'layers.geom_polygon': 'Polygon',
+      'layers.geom_any': 'Any',
+      'layers.locked_cannot_delete': 'Layer is locked and cannot be deleted',
+      'layers.no_features_to_zoom': 'Layer has no features to zoom to',
+      'layers.please_enter_name': 'Please enter a name',
+      'layers.locked_draw_error': 'Active layer is locked, cannot add features',
+      'layers.locked_edit_error': 'Layer is locked, cannot edit attributes',
+      'layers.locked_delete_feature_error': 'Layer is locked, cannot delete features',
+
+      'catalog.empty_hint': 'No data opened yet. Selected files will appear here.',
+      'catalog.source_local': 'Local File',
+      'catalog.reselect_file': 'Re-select "{name}"',
+
+      'statusbar.feature_count_detailed': 'Total Features: {count} (Points: {points}, Lines: {lines}, Polygons: {polys})',
+      'statusbar.feature_count_simple': 'Total Features: {count}',
+
+      'routing.barrier_mode_active': 'Click anywhere on the map to add a circular barrier; click again or press Esc to exit.',
+      'routing.barrier_mode_exited': 'Exited barrier addition mode.',
+      'routing.click_map_add_points': 'Click on map in order to add start, stops and destination; or import points above.',
+      'routing.max_points_reached': 'Analysis points reached the maximum limit of {max}',
+      'routing.max_barriers_reached': 'Barriers reached the maximum limit of {max}',
+      'routing.barrier_added': 'Added {radius}m circular barrier',
+      'routing.open_mode_only_end': 'Destination point is only supported in Open Route mode',
+      'routing.specify_start_first': 'Please specify a start point first',
+      'routing.fixed_start_end_notice': 'Moved start to first and destination to last',
+      'routing.reversed_notice': 'Point order reversed',
+      'routing.duplicate_removed_notice': 'Removed {count} duplicate points',
+      'routing.no_duplicate_points': 'No duplicate points found',
+      'routing.points_cleared_notice': 'Cleared all points',
+      'routing.barriers_cleared_notice': 'Cleared all barriers',
+      'routing.conflict_cannot_save': 'Route conflicts with barriers, saving is disabled',
+      'routing.outdated_cannot_save': 'Parameters changed and route is outdated, please re-calculate before saving',
+      'routing.straight_cannot_save': 'Straight-line preview cannot be saved as formal route',
+      'routing.no_route_to_save': 'No route available to save',
+      'routing.no_editable_layer': 'Cannot create or find an editable line layer',
+      'routing.route_saved_to_layer': 'Route successfully saved to layer "{name}"',
+
+      'selection.location_title': 'Select by Location',
+      'selection.relation_prompt': 'Enter spatial relation (intersect / within), default is intersect',
+      'selection.invalid_relation': 'Invalid spatial relation',
+      'selection.buffer_title': 'Buffer Distance',
+      'selection.buffer_prompt': 'Enter buffer distance in meters, or 0 for none',
+      'selection.select_target_first': 'Please select a target layer first',
+
+      'table.selected_filtered_toast': 'Selected {count} matching features',
+      'table.no_matching_features': 'No matching features',
+      'table.feature_deleted': 'Feature deleted',
+      'table.cell_updated': 'Updated attribute "{key}"',
+      'table.column_added': 'Added column "{name}" to {count} features',
+      'table.no_features_to_add_col': 'Current layer has no features to add attributes!',
+
+      'common.no_features_on_map': 'No features on the map',
+      'common.unknown': 'Unknown',
+      'classify.no_numeric_fields': 'No features with numeric attributes on the canvas. Please add numeric values first!',
+      'draw.prompt_feature_name': 'Enter feature name:',
+      'draw.prompt_feature_desc': 'Enter feature description or notes:',
+      'tgos.added_to_working_layer': 'TGOS address points added to working layer',
+      'style.selected_count': 'Selected {count}',
+      'style.point_symbol_only_marker': 'Only applicable to point markers',
+      'layers.no_active_layer_error': 'No active layer to add features',
+      'layers.no_group': 'No Group',
+      'statusbar.feature_count_details': 'Total Features: {count} (Points: {points}, Lines: {lines}, Polygons: {polys})',
+      'routing.point_default_name': 'Point {id}',
+      'routing.barrier_default_name': 'Barrier #{id}',
+      'routing.barrier_deleted': 'Barrier deleted',
+      'routing.point_deleted': 'Deleted "{name}"'
     }
   };
 
@@ -1173,15 +1431,137 @@
       }
     },
 
+    geomanZhTw: {
+      tooltips: {
+        placeMarker: '點擊以放置標記',
+        firstVertex: '點擊以放置首個頂點',
+        continueLine: '點擊以繼續繪製線段',
+        finishLine: '點擊任一既有標記以完成',
+        finishPoly: '點擊首個標記以完成',
+        finishRect: '點擊以完成',
+        startCircle: '點擊以放置圓心',
+        finishCircle: '點擊以完成',
+        placeCircleMarker: '點擊以放置圓形標記'
+      },
+      actions: {
+        finish: '完成',
+        cancel: '取消',
+        removeLastVertex: '移除最後頂點'
+      },
+      buttonTitles: {
+        drawMarkerButton: '繪製標記',
+        drawPolyButton: '繪製多邊形',
+        drawLineButton: '繪製線段',
+        drawCircleButton: '繪製圓形',
+        drawRectButton: '繪製長方形',
+        editButton: '編輯圖層',
+        dragButton: '拖曳圖層',
+        cutButton: '裁切圖層',
+        deleteButton: '刪除圖層',
+        drawCircleMarkerButton: '繪製圓形標記',
+        snappingButton: '吸附拖曳標記至其他圖層及頂點',
+        pinningButton: '固定共享頂點',
+        rotateButton: '旋轉圖層',
+        drawTextButton: '繪製文字'
+      }
+    },
+
     /**
      * Update Leaflet Geoman toolbar and tooltips
      */
     updateGeomanLang(map) {
       if (!map || !map.pm) return;
-      const lang = this.currentLang === 'zh-TW' ? 'zh' : 'en';
+      const isZh = this.currentLang === 'zh-TW';
+      const lang = isZh ? 'zh' : 'en';
       try {
         if (typeof map.pm.setLang === 'function') {
-          map.pm.setLang(lang);
+          if (isZh) {
+            map.pm.setLang('zh', this.geomanZhTw, 'en');
+          } else {
+            map.pm.setLang('en');
+          }
+        }
+      } catch (_) {}
+
+      try {
+        const container = (typeof map.getContainer === 'function' ? map.getContainer() : null) || (typeof document !== 'undefined' ? document : null);
+        if (container && container.querySelectorAll) {
+          const zhMap = {
+            '绘制标记': '繪製標記',
+            '绘制线段': '繪製線段',
+            '绘制长方形': '繪製長方形',
+            '绘制多边形': '繪製多邊形',
+            '绘制圆形': '繪製圓形',
+            '编辑图层': '編輯圖層',
+            '拖拽图层': '拖曳圖層',
+            '剪切图层': '裁切圖層',
+            '裁切图层': '裁切圖層',
+            '删除图层': '刪除圖層',
+            '旋转图层': '旋轉圖層',
+            'Draw Marker': '繪製標記',
+            'Draw Polyline': '繪製線段',
+            'Draw Rectangle': '繪製長方形',
+            'Draw Polygon': '繪製多邊形',
+            'Draw Circle': '繪製圓形',
+            'Edit Layers': '編輯圖層',
+            'Drag Layers': '拖曳圖層',
+            'Cut Layers': '裁切圖層',
+            'Removal Mode': '刪除圖層',
+            'Rotate Mode': '旋轉圖層',
+            'Rotate Layers': '旋轉圖層'
+          };
+          const enMap = {
+            '繪製標記': 'Draw Marker',
+            '繪製線段': 'Draw Polyline',
+            '繪製長方形': 'Draw Rectangle',
+            '繪製多邊形': 'Draw Polygon',
+            '繪製圓形': 'Draw Circle',
+            '編輯圖層': 'Edit Layers',
+            '拖曳圖層': 'Drag Layers',
+            '裁切圖層': 'Cut Layers',
+            '剪切圖層': 'Cut Layers',
+            '刪除圖層': 'Removal Mode',
+            '旋轉圖層': 'Rotate Layers',
+            '绘制标记': 'Draw Marker',
+            '绘制线段': 'Draw Polyline',
+            '绘制长方形': 'Draw Rectangle',
+            '绘制多边形': 'Draw Polygon',
+            '绘制圆形': 'Draw Circle',
+            '编辑图层': 'Edit Layers',
+            '拖拽图层': 'Drag Layers',
+            '剪切图层': 'Cut Layers',
+            '删除图层': 'Removal Mode',
+            '旋转图层': 'Rotate Layers'
+          };
+          const targetMap = isZh ? zhMap : enMap;
+          const containers = container.querySelectorAll('.leaflet-pm-toolbar .button-container');
+          containers.forEach(box => {
+            const currentTitle = box.getAttribute('title');
+            if (currentTitle && targetMap[currentTitle]) {
+              const newTitle = targetMap[currentTitle];
+              box.setAttribute('title', newTitle);
+              box.setAttribute('aria-label', newTitle);
+              const innerBtn = box.querySelector('a, button');
+              if (innerBtn) {
+                innerBtn.setAttribute('title', newTitle);
+                innerBtn.setAttribute('aria-label', newTitle);
+              }
+            }
+          });
+
+          const buttons = container.querySelectorAll('.leaflet-pm-toolbar a, .leaflet-pm-toolbar button, .leaflet-buttons-control-button');
+          buttons.forEach(btn => {
+            const currentTitle = btn.getAttribute('title');
+            if (currentTitle && targetMap[currentTitle]) {
+              btn.setAttribute('title', targetMap[currentTitle]);
+            }
+            const currentAria = btn.getAttribute('aria-label');
+            if (currentAria && targetMap[currentAria]) {
+              btn.setAttribute('aria-label', targetMap[currentAria]);
+            } else if (btn.getAttribute('title')) {
+              btn.setAttribute('aria-label', btn.getAttribute('title'));
+            }
+          });
         }
       } catch (_) {}
     }

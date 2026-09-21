@@ -1,6 +1,260 @@
 /**
- * GeoCanvas GIS Tool - Application Controller
+ * GeoCanvas GIS Tool - Panel Manager
+ * Coordinates mutual exclusivity, keyboard shortcuts (ESC), and interactive states
+ * across large tool panels (Geoprocessing, Routing, TGOS).
  */
+const PanelManager = {
+  activePanel: null,
+  panels: {},
+
+  init() {
+    this.register('geoprocessing', {
+      panelId: 'geoprocessing-panel',
+      buttonId: 'btn-geoprocessing',
+      isOpen: () => typeof GeoprocessingManager !== 'undefined' && Boolean(GeoprocessingManager.isActive),
+      open: (tool = 'buffer') => {
+        if (typeof GeoprocessingManager !== 'undefined') GeoprocessingManager.open(tool);
+      },
+      close: () => {
+        if (typeof GeoprocessingManager !== 'undefined' && GeoprocessingManager.isActive) GeoprocessingManager.close();
+      }
+    });
+
+    this.register('routing', {
+      panelId: 'routing-panel',
+      buttonId: 'btn-routing',
+      isOpen: () => typeof RoutingManager !== 'undefined' && Boolean(RoutingManager.isActive),
+      open: () => {
+        if (typeof RoutingManager !== 'undefined' && !RoutingManager.isActive) RoutingManager.toggle();
+      },
+      close: () => {
+        if (typeof RoutingManager !== 'undefined' && RoutingManager.isActive) RoutingManager.toggle();
+      }
+    });
+
+    this.register('tgos', {
+      panelId: 'tgos-locator-panel',
+      buttonId: 'btn-tgos-locate',
+      isOpen: () => typeof TGOSAddressManager !== 'undefined' && Boolean(TGOSAddressManager.isActive),
+      open: () => {
+        if (typeof TGOSAddressManager !== 'undefined' && !TGOSAddressManager.isActive) TGOSAddressManager.toggle();
+      },
+      close: () => {
+        if (typeof TGOSAddressManager !== 'undefined' && TGOSAddressManager.isActive) TGOSAddressManager.close();
+      }
+    });
+
+    // Global ESC key listener to close topmost panel or modal
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        this.handleEscape(e);
+      }
+    });
+  },
+
+  register(name, config) {
+    this.panels[name] = config;
+  },
+
+  open(name, ...args) {
+    Object.keys(this.panels).forEach(panelKey => {
+      if (panelKey !== name) {
+        this.panels[panelKey].close();
+      }
+    });
+
+    // Large analysis tools receive a focused workspace. The catalog can be
+    // reopened explicitly after leaving the tool instead of competing for map space.
+    if (typeof CatalogManager !== 'undefined') CatalogManager.hide();
+    if (typeof SupportPanelManager !== 'undefined') SupportPanelManager.close();
+
+    const target = this.panels[name];
+    if (target) {
+      target.open(...args);
+      this.activePanel = name;
+      this.syncButtonStates();
+    }
+  },
+
+  close(name) {
+    const target = this.panels[name];
+    if (target) {
+      target.close();
+      if (this.activePanel === name) {
+        this.activePanel = null;
+      }
+      this.syncButtonStates();
+    }
+  },
+
+  toggle(name, ...args) {
+    const target = this.panels[name];
+    if (target && target.isOpen()) {
+      this.close(name);
+    } else {
+      this.open(name, ...args);
+    }
+  },
+
+  onPanelOpened(name) {
+    Object.keys(this.panels).forEach(panelKey => {
+      if (panelKey !== name) {
+        this.panels[panelKey].close();
+      }
+    });
+    if (typeof CatalogManager !== 'undefined') CatalogManager.hide();
+    this.activePanel = name;
+    this.syncButtonStates();
+  },
+
+  onPanelClosed(name) {
+    if (this.activePanel === name) {
+      this.activePanel = null;
+    }
+    this.syncButtonStates();
+  },
+
+  syncButtonStates() {
+    // activePanel is set by onPanelOpened before some managers finish updating
+    // their own isActive flag, so it is the authoritative transition state.
+    let anyActive = Boolean(this.activePanel);
+    Object.keys(this.panels).forEach(key => {
+      const p = this.panels[key];
+      const isCurrentlyOpen = p.isOpen();
+      if (p.buttonId) {
+        const btn = document.getElementById(p.buttonId);
+        btn?.classList.toggle('active', isCurrentlyOpen);
+      }
+      if (isCurrentlyOpen) anyActive = true;
+    });
+
+    const toolsDropdownBtn = document.getElementById('tools-dropdown-btn');
+    toolsDropdownBtn?.classList.toggle('has-active-tool', anyActive);
+
+    const workspace = document.querySelector('.app-workspace');
+    workspace?.classList.toggle('has-focused-tool', anyActive);
+
+    // The contextual inspector is replaced by the active right-side tool.
+    const stylePanel = document.getElementById('style-panel');
+    if (stylePanel) stylePanel.inert = anyActive;
+  },
+
+  handleEscape(event) {
+    // 1. Check if an active modal dialog is open (e.g. .modal-overlay.active)
+    const activeModals = Array.from(document.querySelectorAll('.modal-overlay.active'));
+    if (activeModals.length > 0) {
+      const topModal = activeModals[activeModals.length - 1];
+      const cancelBtn = topModal.querySelector('#btn-confirm-modal-cancel, #btn-prompt-modal-cancel, .modal-cancel, .btn-modal-cancel, .btn-cancel, .modal-close');
+      if (cancelBtn && typeof cancelBtn.click === 'function') {
+        cancelBtn.click();
+      } else {
+        topModal.classList.remove('active');
+      }
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      return;
+    }
+
+    // 2. Check if RoutingManager is in barrier addition mode
+    if (typeof RoutingManager !== 'undefined' && RoutingManager.isActive && RoutingManager.inputMode === 'barriers') {
+      RoutingManager.toggleBarrierMode();
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      return;
+    }
+
+    // 3. Check if a large tool panel is open
+    for (const key of Object.keys(this.panels)) {
+      const p = this.panels[key];
+      if (p && p.isOpen && p.isOpen()) {
+        this.close(key);
+        event?.preventDefault?.();
+        event?.stopPropagation?.();
+        return;
+      }
+    }
+
+    // 4. Support panel
+    if (typeof SupportPanelManager !== 'undefined' && SupportPanelManager.isOpen()) {
+      SupportPanelManager.close({ restoreFocus: true });
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      return;
+    }
+
+    // 5. Attribute table drawer
+    if (typeof TableManager !== 'undefined' && (TableManager.isOpen || TableManager.drawer?.classList.contains('open'))) {
+      TableManager.close();
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      return;
+    }
+
+    // 6. Closable menus / popups
+    const openMenus = Array.from(document.querySelectorAll('.dropdown-menu.open, .dropdown.open'));
+    if (openMenus.length > 0) {
+      openMenus.forEach(m => m.classList.remove('open'));
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+    }
+  }
+};
+
+window.PanelManager = PanelManager;
+
+const SupportPanelManager = {
+  panel: null,
+  trigger: null,
+  returnFocus: null,
+
+  init() {
+    this.panel = document.getElementById('support-panel');
+    this.trigger = document.getElementById('btn-open-support');
+    this.returnFocus = document.getElementById('project-dropdown-btn');
+    this.trigger?.addEventListener('click', () => this.toggle());
+    document.getElementById('btn-close-support')?.addEventListener('click', () => this.close({ restoreFocus: true }));
+    this.sync(false);
+  },
+
+  isOpen() {
+    return Boolean(this.panel?.classList.contains('is-open'));
+  },
+
+  open() {
+    if (!this.panel) return;
+    document.getElementById('project-dropdown')?.classList.remove('open');
+    if (typeof PanelManager !== 'undefined' && PanelManager.activePanel) {
+      PanelManager.close(PanelManager.activePanel);
+    }
+    if (typeof CatalogManager !== 'undefined') CatalogManager.hide();
+    this.sync(true);
+    window.requestAnimationFrame(() => document.getElementById('btn-close-support')?.focus());
+  },
+
+  close({ restoreFocus = false } = {}) {
+    if (!this.panel) return;
+    const wasOpen = this.isOpen();
+    this.sync(false);
+    if (restoreFocus && wasOpen) this.returnFocus?.focus();
+  },
+
+  toggle() {
+    if (this.isOpen()) this.close({ restoreFocus: true });
+    else this.open();
+  },
+
+  sync(isOpen) {
+    if (!this.panel) return;
+    this.panel.classList.toggle('is-open', isOpen);
+    this.panel.setAttribute('aria-hidden', String(!isOpen));
+    this.panel.inert = !isOpen;
+    this.trigger?.setAttribute('aria-expanded', String(isOpen));
+    this.trigger?.classList.toggle('active', isOpen);
+    document.querySelector('.app-workspace')?.classList.toggle('has-support-panel', isOpen);
+  }
+};
+
+window.SupportPanelManager = SupportPanelManager;
 
 const App = {
   map: null,
@@ -14,8 +268,15 @@ const App = {
     if (typeof I18n !== 'undefined') {
       I18n.init(this.map);
       I18n.onLanguageChange(() => {
+        if (typeof LayerManager !== 'undefined' && LayerManager.layers) {
+          LayerManager.layers.forEach(layer => {
+            if (layer.isDefault) {
+              layer.name = I18n.t('layers.default_layer_name', '工作圖層');
+            }
+          });
+          if (LayerManager.render) LayerManager.render();
+        }
         this.updateStats();
-        if (typeof LayerManager !== 'undefined' && LayerManager.render) LayerManager.render();
         if (typeof TableManager !== 'undefined' && TableManager.render) TableManager.render();
         if (typeof RoutingManager !== 'undefined' && RoutingManager.renderStopList) RoutingManager.renderStopList();
         if (typeof SafetyManager !== 'undefined' && SafetyManager.updateUi) SafetyManager.updateUi();
@@ -28,7 +289,11 @@ const App = {
     
     // Initialize sub-modules
     LayerManager.init();
-    LayerManager.createLayer('工作圖層'); // Create default layer
+    const defaultLayerName = typeof I18n !== 'undefined' ? I18n.t('layers.default_layer_name', '工作圖層') : '工作圖層';
+    const defLayer = LayerManager.createLayer(defaultLayerName);
+    if (defLayer) {
+      defLayer.isDefault = true;
+    }
     DrawManager.init(this.map);
     if (window.SelectionManager) SelectionManager.init(this.map);
     
@@ -54,6 +319,10 @@ const App = {
       SafetyManager.init(this.map);
     }
     this.initImportPreview();
+
+    // Initialize PanelManager
+    PanelManager.init();
+    SupportPanelManager.init();
 
     // Render Lucide icons
     if (typeof lucide !== 'undefined') {
@@ -254,24 +523,29 @@ const App = {
     }
   },
 
-  triggerSelectByLocation() {
+  async triggerSelectByLocation() {
     const sel = document.getElementById('select-location-layer');
     if (!sel || !sel.value) {
-      this.showToast('請先選擇目標圖層', 'warning');
+      this.showToast(typeof I18n !== 'undefined' ? I18n.t('selection.select_target_first', '請先選擇目標圖層') : '請先選擇目標圖層', 'warning');
       return;
     }
     const targetLayerId = sel.value;
     
-    // Default to intersect, no buffer for now to keep it simple, or prompt user
-    const relation = prompt('請輸入空間關係 (intersect / within)，預設為 intersect', 'intersect') || 'intersect';
+    const relationTitle = typeof I18n !== 'undefined' ? I18n.t('selection.location_title', '空間位置選取') : '空間位置選取';
+    const relationPrompt = typeof I18n !== 'undefined' ? I18n.t('selection.relation_prompt', '請輸入空間關係 (intersect / within)，預設為 intersect') : '請輸入空間關係 (intersect / within)，預設為 intersect';
+    const relationInput = await this.promptInput(relationTitle, relationPrompt, 'intersect');
+    if (relationInput === null || relationInput === undefined) return;
+    const relation = String(relationInput).trim().toLowerCase() || 'intersect';
     if (!['intersect', 'within'].includes(relation)) {
-       this.showToast('無效的空間關係', 'error');
+       this.showToast(typeof I18n !== 'undefined' ? I18n.t('selection.invalid_relation', '無效的空間關係') : '無效的空間關係', 'error');
        return;
     }
     
     let buffer = 0;
-    const bufStr = prompt('請輸入環域距離(公尺)，若為 0 則不進行環域', '0');
-    if (bufStr && !isNaN(Number(bufStr))) {
+    const bufTitle = typeof I18n !== 'undefined' ? I18n.t('selection.buffer_title', '環域距離') : '環域距離';
+    const bufPrompt = typeof I18n !== 'undefined' ? I18n.t('selection.buffer_prompt', '請輸入環域距離(公尺)，若為 0 則不進行環域') : '請輸入環域距離(公尺)，若為 0 則不進行環域';
+    const bufStr = await this.promptInput(bufTitle, bufPrompt, '0');
+    if (bufStr !== null && bufStr !== undefined && !isNaN(Number(bufStr))) {
        buffer = Number(bufStr);
     }
 
@@ -324,7 +598,7 @@ const App = {
 
     if (statEl) {
       if (typeof I18n !== 'undefined') {
-        statEl.textContent = I18n.t('statusbar.feature_count_details', {
+        statEl.textContent = I18n.t('statusbar.feature_count_detailed', {
           count: layers.length,
           points,
           lines,
@@ -358,6 +632,7 @@ const App = {
     if (toolsBtn && toolsDropdown) {
       toolsBtn.addEventListener('click', (event) => {
         event.stopPropagation();
+        if (typeof SupportPanelManager !== 'undefined') SupportPanelManager.close();
         toolsDropdown.classList.toggle('open');
         exportDropdown?.classList.remove('open');
       });
@@ -369,6 +644,7 @@ const App = {
     if (langBtn && langDropdown) {
       langBtn.addEventListener('click', (event) => {
         event.stopPropagation();
+        if (typeof SupportPanelManager !== 'undefined') SupportPanelManager.close();
         langDropdown.classList.toggle('open');
         exportDropdown?.classList.remove('open');
         toolsDropdown?.classList.remove('open');
@@ -391,7 +667,7 @@ const App = {
     const tableBtn = document.getElementById('btn-toggle-table');
     const closeDrawerBtn = document.getElementById('btn-close-drawer');
     if (tableBtn) {
-      tableBtn.addEventListener('click', () => TableManager.toggle());
+      tableBtn.addEventListener('click', (e) => TableManager.toggle(e.currentTarget || tableBtn));
     }
     if (closeDrawerBtn) {
       closeDrawerBtn.addEventListener('click', () => TableManager.close());
@@ -400,12 +676,16 @@ const App = {
     // Clear all button
     const clearBtn = document.getElementById('btn-clear-all');
     if (clearBtn) {
-      clearBtn.addEventListener('click', () => {
+      clearBtn.addEventListener('click', async () => {
         if (DrawManager.getAllLayers().length === 0) {
           this.showToast('目前地圖上沒有圖元', 'info');
           return;
         }
-        if (confirm('確定要清空畫布上的所有圖元嗎？清空後可使用「復原」救回。')) {
+        const confirmed = await this.confirm(
+          typeof I18n !== 'undefined' ? I18n.t('table.clear_canvas_confirm', '確定要清空畫布上的所有圖元嗎？清空後可使用「復原」救回。') : '確定要清空畫布上的所有圖元嗎？清空後可使用「復原」救回。',
+          { isDanger: true }
+        );
+        if (confirmed) {
           DrawManager.clearAll();
         }
       });
@@ -451,7 +731,11 @@ const App = {
     const routingBtn = document.getElementById('btn-routing');
     if (routingBtn) {
       routingBtn.addEventListener('click', () => {
-        if (typeof RoutingManager !== 'undefined') RoutingManager.toggle();
+        if (typeof PanelManager !== 'undefined') {
+          PanelManager.toggle('routing');
+        } else if (typeof RoutingManager !== 'undefined') {
+          RoutingManager.toggle();
+        }
       });
     }
 
@@ -799,6 +1083,155 @@ const App = {
       toast.style.transition = 'all 0.3s ease';
       setTimeout(() => toast.remove(), 300);
     }, 4000);
+  },
+
+  /**
+   * Custom Asynchronous Confirmation Modal (replaces native window.confirm)
+   */
+  confirm(message, options = {}) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('confirm-modal');
+      if (!modal) {
+        resolve(true);
+        return;
+      }
+      const titleEl = document.getElementById('confirm-modal-title');
+      const msgEl = document.getElementById('confirm-modal-message');
+      const okBtn = document.getElementById('btn-confirm-modal-ok');
+      const cancelBtn = document.getElementById('btn-confirm-modal-cancel');
+      const closeBtn = document.getElementById('btn-confirm-modal-close');
+
+      if (titleEl) {
+        titleEl.textContent = options.title || (typeof I18n !== 'undefined' ? I18n.t('common.confirm_title', '操作確認') : '操作確認');
+      }
+      if (msgEl) {
+        msgEl.textContent = message || '';
+      }
+      if (okBtn) {
+        okBtn.textContent = options.confirmText || (typeof I18n !== 'undefined' ? I18n.t('common.confirm', '確定') : '確定');
+        if (options.isDanger) {
+          okBtn.className = 'btn btn-danger';
+        } else {
+          okBtn.className = 'btn btn-primary';
+        }
+      }
+
+      let settled = false;
+      const cleanup = (result) => {
+        if (settled) return;
+        settled = true;
+        modal.classList.remove('active');
+        document.removeEventListener('keydown', onKey);
+        resolve(result);
+      };
+
+      const onKey = (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          cleanup(false);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          cleanup(true);
+        }
+      };
+
+      if (okBtn) okBtn.onclick = () => cleanup(true);
+      if (cancelBtn) cancelBtn.onclick = () => cleanup(false);
+      if (closeBtn) closeBtn.onclick = () => cleanup(false);
+      document.addEventListener('keydown', onKey);
+
+      modal.classList.add('active');
+      setTimeout(() => okBtn?.focus(), 50);
+    });
+  },
+
+  /**
+   * Custom Asynchronous Prompt / Input Modal (replaces native window.prompt)
+   */
+  promptInput(title, label, defaultValue = '', options = {}) {
+    return new Promise((resolve) => {
+      const modal = document.getElementById('prompt-modal');
+      if (!modal) {
+        resolve(defaultValue);
+        return;
+      }
+      const titleEl = document.getElementById('prompt-modal-title');
+      const labelEl = document.getElementById('prompt-modal-label');
+      const inputEl = document.getElementById('prompt-modal-input');
+      const sliderWrap = document.getElementById('prompt-modal-slider-wrap');
+      const slider = document.getElementById('prompt-modal-slider');
+      const errEl = document.getElementById('prompt-modal-error');
+      const okBtn = document.getElementById('btn-prompt-modal-ok');
+      const cancelBtn = document.getElementById('btn-prompt-modal-cancel');
+      const closeBtn = document.getElementById('btn-prompt-modal-close');
+
+      if (titleEl) titleEl.textContent = title || (typeof I18n !== 'undefined' ? I18n.t('common.input_title', '請輸入') : '請輸入');
+      if (labelEl) labelEl.textContent = label || '';
+      if (inputEl) {
+        inputEl.type = options.type || 'text';
+        inputEl.value = defaultValue ?? '';
+      }
+      if (errEl) {
+        errEl.textContent = '';
+        errEl.style.display = 'none';
+      }
+
+      if (options.slider && sliderWrap && slider) {
+        sliderWrap.style.display = 'block';
+        slider.min = options.min ?? 0;
+        slider.max = options.max ?? 100;
+        slider.value = Number(defaultValue) || 0;
+        slider.oninput = () => { if (inputEl) inputEl.value = slider.value; };
+        if (inputEl) inputEl.oninput = () => { slider.value = inputEl.value; };
+      } else if (sliderWrap) {
+        sliderWrap.style.display = 'none';
+      }
+
+      let settled = false;
+      const cleanup = (result) => {
+        if (settled) return;
+        settled = true;
+        modal.classList.remove('active');
+        document.removeEventListener('keydown', onKey);
+        resolve(result);
+      };
+
+      const validateAndSubmit = () => {
+        const val = inputEl ? inputEl.value : '';
+        if (options.validate) {
+          const err = options.validate(val);
+          if (err) {
+            if (errEl) {
+              errEl.textContent = err;
+              errEl.style.display = 'block';
+            }
+            return;
+          }
+        }
+        cleanup(val);
+      };
+
+      const onKey = (e) => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          cleanup(null);
+        } else if (e.key === 'Enter') {
+          e.preventDefault();
+          validateAndSubmit();
+        }
+      };
+
+      if (okBtn) okBtn.onclick = validateAndSubmit;
+      if (cancelBtn) cancelBtn.onclick = () => cleanup(null);
+      if (closeBtn) closeBtn.onclick = () => cleanup(null);
+      document.addEventListener('keydown', onKey);
+
+      modal.classList.add('active');
+      setTimeout(() => {
+        inputEl?.focus();
+        inputEl?.select();
+      }, 50);
+    });
   }
 };
 

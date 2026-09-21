@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title data-i18n="app.page_title">GeoCanvas - 簡易 GIS 向量繪製與圖資轉換工具</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230f766e'/%3E%3Cpath d='M32 12c-9.4 0-17 7.6-17 17 0 12.4 17 25 17 25s17-12.6 17-25c0-9.4-7.6-17-17-17zm0 24a7 7 0 1 1 0-14 7 7 0 0 1 0 14z' fill='white'/%3E%3C/svg%3E">
   
   <!-- Leaflet CSS -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -37,6 +38,8 @@
           <div class="divider"></div>
           <button id="btn-project-undo" disabled><i data-lucide="undo-2"></i><span data-i18n="header.undo">復原</span><span class="project-shortcut">Ctrl+Z</span></button>
           <button id="btn-project-redo" disabled><i data-lucide="redo-2"></i><span data-i18n="header.redo">重做</span><span class="project-shortcut">Ctrl+Y</span></button>
+          <div class="divider"></div>
+          <button id="btn-open-support" aria-controls="support-panel" aria-expanded="false"><i data-lucide="heart-handshake"></i><span data-i18n="header.support">支持開發</span></button>
         </div>
         <input id="project-file-input" type="file" accept=".json,.gcp.json,application/json" hidden />
       </div>
@@ -202,14 +205,17 @@
     <aside class="layer-panel" id="layer-panel" aria-label="圖層面板" data-i18n-aria="layers.title">
       <div class="layer-panel-header">
         <div><i data-lucide="layers-3" style="width: 16px; height: 16px;"></i><span data-i18n="layers.title">圖層管理</span></div>
-        <button id="btn-close-layers" class="icon-button" title="收合圖層面板" data-i18n-title="layers.close_title"><i data-lucide="x" style="width: 16px; height: 16px;"></i></button>
+        <button id="btn-close-layers" class="icon-button" title="收合圖層面板" data-i18n-title="layers.close_title" aria-label="收合圖層面板" data-i18n-aria="layers.close_title"><i data-lucide="x" style="width: 16px; height: 16px;"></i></button>
       </div>
       <div class="layer-panel-toolbar">
-        <button id="btn-add-layer" class="icon-button" title="新增圖層" data-i18n-title="layers.add_layer"><i data-lucide="plus-square" style="width: 16px; height: 16px;"></i></button>
-        <button id="btn-add-group" class="icon-button" title="新增群組" data-i18n-title="layers.add_group"><i data-lucide="folder-plus" style="width: 16px; height: 16px;"></i></button>
+        <button id="btn-add-layer" class="icon-button" title="新增圖層" data-i18n-title="layers.add_layer" aria-label="新增圖層" data-i18n-aria="layers.add_layer"><i data-lucide="plus-square" style="width: 16px; height: 16px;"></i></button>
+        <button id="btn-add-group" class="icon-button" title="新增群組" data-i18n-title="layers.add_group" aria-label="新增群組" data-i18n-aria="layers.add_group"><i data-lucide="folder-plus" style="width: 16px; height: 16px;"></i></button>
         <div class="layer-search">
           <i data-lucide="search" style="width: 14px; height: 14px; color: #64748b;"></i>
           <input type="text" id="layer-search-input" placeholder="搜尋圖層..." data-i18n-placeholder="layers.search_placeholder" />
+          <button id="btn-clear-layer-search" class="icon-button" style="display: none; position: absolute; right: 4px; padding: 2px;" title="清除搜尋" data-i18n-title="layers.clear_search" aria-label="清除搜尋" data-i18n-aria="layers.clear_search">
+            <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+          </button>
         </div>
       </div>
       <div class="layer-panel-body" id="layer-tree-container">
@@ -217,10 +223,10 @@
       </div>
     </aside>
 
-    <aside class="catalog-panel" id="catalog-panel" aria-label="資料目錄" data-i18n-aria="catalog.title">
+    <aside class="catalog-panel is-hidden" id="catalog-panel" aria-label="資料目錄" data-i18n-aria="catalog.title" aria-hidden="true" inert>
       <div class="catalog-header">
         <div><i data-lucide="folder-tree" style="width: 17px; height: 17px;"></i><span data-i18n="catalog.title">資料目錄</span></div>
-        <button id="btn-close-catalog" class="icon-button" title="收合資料目錄" data-i18n-title="catalog.close_title"><i data-lucide="chevrons-right" style="width: 17px; height: 17px;"></i></button>
+        <button id="btn-close-catalog" class="icon-button" title="收合資料目錄" data-i18n-title="catalog.close_title" aria-label="收合資料目錄" data-i18n-aria="catalog.close_title"><i data-lucide="chevrons-right" style="width: 17px; height: 17px;"></i></button>
       </div>
       <div class="catalog-body">
         <button id="btn-catalog-add-file" class="catalog-add-button">
@@ -235,6 +241,27 @@
         </section>
 
         <p class="catalog-note"><i data-lucide="shield-check" style="width: 14px; height: 14px;"></i> <span data-i18n="catalog.privacy_note">為保護隱私，請透過「選擇電腦檔案」授權要匯入的檔案。</span></p>
+      </div>
+    </aside>
+
+    <aside class="support-panel" id="support-panel" aria-label="支持 GeoCanvas 開發" data-i18n-aria="support.title" aria-hidden="true" inert>
+      <div class="support-header">
+        <div><i data-lucide="heart-handshake" style="width: 17px; height: 17px;"></i><span data-i18n="support.title">支持 GeoCanvas 開發</span></div>
+        <button id="btn-close-support" class="icon-button" title="收合支持開發面板" data-i18n-title="support.close_title" aria-label="收合支持開發面板" data-i18n-aria="support.close_title"><i data-lucide="chevrons-right" style="width: 17px; height: 17px;"></i></button>
+      </div>
+      <div class="support-body">
+        <div class="support-symbol" aria-hidden="true"><i data-lucide="coffee"></i></div>
+        <h3 data-i18n="support.heading">喜歡 GeoCanvas GIS 嗎？</h3>
+        <p data-i18n="support.description">如果這個本機 GIS 工具對你有幫助，歡迎自願支持後續開發、測試與維護。</p>
+        <a class="btn btn-primary support-link" href="https://buymeacoffee.com/allen89100q" target="_blank" rel="noopener noreferrer" referrerpolicy="no-referrer">
+          <i data-lucide="external-link" style="width: 16px; height: 16px;"></i>
+          <span data-i18n="support.action">前往 Buy Me a Coffee</span>
+        </a>
+        <div class="support-notice">
+          <i data-lucide="shield-check" aria-hidden="true"></i>
+          <p data-i18n="support.privacy">付款將在 Buy Me a Coffee 網站完成；GeoCanvas 不會接收或保存付款資料。</p>
+        </div>
+        <p class="support-voluntary" data-i18n="support.voluntary">支持完全自願，未贊助仍可使用全部功能。</p>
       </div>
     </aside>
 
@@ -284,21 +311,39 @@
     </div>
 
     <!-- Bottom Attribute Table Drawer -->
-    <div class="attribute-drawer" id="attribute-drawer">
+    <div class="attribute-drawer" id="attribute-drawer" inert aria-hidden="true">
       <div class="drawer-header">
         <div class="drawer-title">
           <i data-lucide="layers" style="width: 18px; height: 18px; color: #2563eb;"></i>
           <span data-i18n="table.title">圖層屬性資料表</span>
+          <span class="table-layer-select-wrap">
+            <label for="table-layer-select" class="table-layer-select-label" data-i18n="table.active_layer_label">目前圖層</label>
+            <select id="table-layer-select" class="table-layer-select"></select>
+          </span>
           <span class="dropdown-tag" id="drawer-feature-count">0 個圖元</span>
+          <span id="drawer-matched-count" class="drawer-matched-count"></span>
         </div>
         <div class="drawer-tools">
-          <input type="text" id="table-search-input" class="table-search" placeholder="搜尋名稱、屬性..." data-i18n-placeholder="table.search_placeholder" />
+          <div class="table-search-wrap">
+            <input type="text" id="table-search-input" class="table-search" placeholder="搜尋名稱、屬性..." data-i18n-placeholder="table.search_placeholder" />
+            <button id="btn-clear-table-search" class="icon-button" style="display: none;" title="清除搜尋" data-i18n-title="layers.clear_search" aria-label="清除搜尋" data-i18n-aria="layers.clear_search">
+              <i data-lucide="x" style="width: 12px; height: 12px;"></i>
+            </button>
+          </div>
           <label style="font-size:.78rem;white-space:nowrap"><input type="checkbox" id="table-selected-only"> <span data-i18n="table.selected_only">僅顯示選取</span></label>
-          <button class="btn btn-secondary" style="padding: 4px 10px;" onclick="TableManager.selectFiltered()">
+          <button class="btn btn-secondary" id="btn-toggle-table-query" style="padding: 4px 10px;">
+            <i data-lucide="filter" style="width: 14px; height: 14px;"></i>
+            <span data-i18n="table.advanced_query">進階查詢</span>
+          </button>
+          <button class="btn btn-secondary" id="btn-clear-table-filters" style="padding: 4px 10px;" title="清除所有條件" data-i18n-title="table.clear_all_filters">
+            <i data-lucide="rotate-ccw" style="width: 14px; height: 14px;"></i>
+            <span data-i18n="table.clear_all_filters">清除所有條件</span>
+          </button>
+          <button class="btn btn-secondary" id="btn-table-select-filtered" style="padding: 4px 10px;">
             <i data-lucide="check-square" style="width: 14px; height: 14px;"></i>
             <span data-i18n="table.select_filtered">選取過濾結果</span>
           </button>
-          <button class="btn btn-secondary" style="padding: 4px 10px;" onclick="TableManager.addNewColumn()">
+          <button class="btn btn-secondary" id="btn-table-add-column" style="padding: 4px 10px;">
             <i data-lucide="plus" style="width: 14px; height: 14px;"></i>
             <span data-i18n="table.add_column">新增屬性欄位</span>
           </button>
@@ -314,12 +359,21 @@
             <i data-lucide="file-plus" style="width: 14px; height: 14px;"></i>
             <span data-i18n="table.save_selected">另存選取圖元</span>
           </button>
-          <button id="btn-close-drawer" class="btn btn-secondary" style="padding: 4px 8px;" title="收合抽屜" data-i18n-title="table.close_drawer">
+          <div class="table-pagination" id="table-pagination" style="display: none;">
+            <button class="btn btn-secondary btn-xs" id="btn-table-prev-page" title="上一頁" data-i18n-title="table.page_prev">
+              <i data-lucide="chevron-left" style="width: 12px; height: 12px;"></i>
+            </button>
+            <span id="table-page-info" style="font-size: 0.74rem; color: #475569; padding: 0 4px;">1 / 1</span>
+            <button class="btn btn-secondary btn-xs" id="btn-table-next-page" title="下一頁" data-i18n-title="table.page_next">
+              <i data-lucide="chevron-right" style="width: 12px; height: 12px;"></i>
+            </button>
+          </div>
+          <button id="btn-close-drawer" class="btn btn-secondary" style="padding: 4px 8px;" title="收合抽屜" data-i18n-title="table.close_drawer" aria-label="收合抽屜" data-i18n-aria="table.close_drawer">
             <i data-lucide="chevron-down" style="width: 16px; height: 16px;"></i>
           </button>
         </div>
       </div>
-      <div id="attribute-query-bar" style="display:flex;gap:6px;align-items:center;padding:6px 12px;border-bottom:1px solid #e2e8f0;background:#f8fafc;flex-wrap:wrap">
+      <div id="attribute-query-bar" style="display:none;gap:6px;align-items:center;padding:6px 12px;border-bottom:1px solid #e2e8f0;background:#f8fafc;flex-wrap:wrap">
         <strong style="font-size:.78rem" data-i18n="table.query_title">屬性查詢</strong>
         <select id="query-field-a"><option value="" data-i18n="table.field_a">欄位 A</option></select>
         <select id="query-operator-a"><option value="contains" data-i18n="table.contains">包含</option><option value="eq" data-i18n="table.equals">等於</option><option value="neq" data-i18n="table.not_equals">不等於</option><option value="gt" data-i18n="table.greater_than">大於</option><option value="lt" data-i18n="table.less_than">小於</option></select>
@@ -355,10 +409,49 @@
     </div>
   </footer>
 
-  <!-- Workspace Recovery Dialog -->
+  <!-- Unified Confirmation Modal -->
+  <div class="modal-overlay" id="confirm-modal" style="z-index: 1200;">
+    <div class="modal-card" style="max-width: 420px;">
+      <div class="modal-header">
+        <h3 id="confirm-modal-title" data-i18n="common.confirm_title">操作確認</h3>
+        <button class="modal-close" id="btn-confirm-modal-close" aria-label="關閉" data-i18n-aria="common.close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="confirm-modal-message" style="font-size: 0.88rem; color: #334155; line-height: 1.5; margin: 0;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-confirm-modal-cancel" data-i18n="common.cancel">取消</button>
+        <button class="btn btn-primary" id="btn-confirm-modal-ok" data-i18n="common.confirm">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Unified Prompt / Input Modal -->
+  <div class="modal-overlay" id="prompt-modal" style="z-index: 1200;">
+    <div class="modal-card" style="max-width: 420px;">
+      <div class="modal-header">
+        <h3 id="prompt-modal-title" data-i18n="common.input_title">請輸入</h3>
+        <button class="modal-close" id="btn-prompt-modal-close" aria-label="關閉" data-i18n-aria="common.close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <label id="prompt-modal-label" for="prompt-modal-input" style="display: block; font-size: 0.82rem; font-weight: 600; color: #334155; margin-bottom: 6px;"></label>
+        <input type="text" id="prompt-modal-input" style="width: 100%; box-sizing: border-box; padding: 7px 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.85rem;" />
+        <div id="prompt-modal-slider-wrap" style="display: none; margin-top: 10px;">
+          <input type="range" id="prompt-modal-slider" min="0" max="100" style="width: 100%;" />
+        </div>
+        <p id="prompt-modal-error" style="display: none; font-size: 0.74rem; color: #dc2626; margin: 6px 0 0 0;"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btn-prompt-modal-cancel" data-i18n="common.cancel">取消</button>
+        <button class="btn btn-primary" id="btn-prompt-modal-ok" data-i18n="common.confirm">確定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Layer Editor Modal -->
   <div class="modal-overlay" id="layer-editor-modal">
     <div class="modal-card" style="max-width:440px">
-      <div class="modal-header"><h3 id="layer-editor-title" data-i18n="modal.layer_editor_add">新增圖層</h3><button class="modal-close" id="btn-close-layer-editor">&times;</button></div>
+      <div class="modal-header"><h3 id="layer-editor-title" data-i18n="modal.layer_editor_add">新增圖層</h3><button class="modal-close" id="btn-close-layer-editor" aria-label="關閉" data-i18n-aria="common.close">&times;</button></div>
       <div class="modal-body">
         <label style="display:block;margin-bottom:12px"><span data-i18n="modal.layer_name">名稱</span>
           <input id="layer-editor-name" type="text" style="width:100%;margin-top:5px;padding:8px" maxlength="100">
@@ -403,7 +496,7 @@
           <i data-lucide="file-up" style="color: #2563eb; width: 20px; height: 20px;"></i>
           <h3 data-i18n="modal.import_title">匯入空間圖資檔案</h3>
         </div>
-        <button class="modal-close" id="btn-close-import">&times;</button>
+        <button class="modal-close" id="btn-close-import" aria-label="關閉" data-i18n-aria="common.close">&times;</button>
       </div>
       <div class="modal-body">
         <!-- Drag & Drop Zone -->
@@ -443,7 +536,7 @@
           <i data-lucide="scan-search" style="color: #2563eb; width: 20px; height: 20px;"></i>
           <h3 data-i18n="modal.import_preview_title">匯入前檢查</h3>
         </div>
-        <button class="modal-close" id="btn-close-import-preview">&times;</button>
+        <button class="modal-close" id="btn-close-import-preview" aria-label="關閉" data-i18n-aria="common.close">&times;</button>
       </div>
       <div class="modal-body">
         <div class="import-file-name" id="import-preview-filename"></div>
@@ -525,7 +618,7 @@
           <i data-lucide="shield-alert" style="color: #2563eb; width: 22px; height: 22px;"></i>
           <h3 data-i18n="modal.consent_title">外部服務資料傳輸確認</h3>
         </div>
-        <button class="modal-close" onclick="RoutingManager.rejectOsrmConsent()">&times;</button>
+        <button class="modal-close" onclick="RoutingManager.rejectOsrmConsent()" aria-label="關閉" data-i18n-aria="common.close">&times;</button>
       </div>
       <div class="modal-body">
         <p style="font-size: 0.85rem; color: #334155; line-height: 1.5; margin-bottom: 12px;" data-i18n="modal.consent_desc">
@@ -563,7 +656,7 @@
           <i data-lucide="bar-chart-2" style="color: #2563eb; width: 20px; height: 20px;"></i>
           <h3 data-i18n="modal.classify_title">數值分級 (Graduated Colors)</h3>
         </div>
-        <button class="modal-close" id="btn-close-classify">&times;</button>
+        <button class="modal-close" id="btn-close-classify" aria-label="關閉" data-i18n-aria="common.close">&times;</button>
       </div>
       <div class="modal-body">
         <div style="margin-bottom: 12px;">
@@ -590,7 +683,7 @@
           <i data-lucide="calculator" style="color: #2563eb; width: 20px; height: 20px;"></i>
           <h3 data-i18n="calc.title">欄位計算器 (Field Calculator)</h3>
         </div>
-        <button class="modal-close" id="btn-calc-close" type="button">&times;</button>
+        <button class="modal-close" id="btn-calc-close" type="button" aria-label="關閉" data-i18n-aria="common.close">&times;</button>
       </div>
       <div class="modal-body calc-modal-body">
         <div class="calc-target-row">
@@ -691,7 +784,7 @@
           <i data-lucide="layers" style="color: #2563eb; width: 20px; height: 20px;"></i>
           <h3 data-i18n="modal.wmts_title">WMTS 圖磚服務設定與檢視</h3>
         </div>
-        <button class="modal-close" id="btn-close-wmts">&times;</button>
+        <button class="modal-close" id="btn-close-wmts" aria-label="關閉" data-i18n-aria="common.close">&times;</button>
       </div>
       <div class="modal-body">
         <div style="margin-bottom: 12px;">
@@ -743,12 +836,17 @@
         <button class="routing-accordion-header" type="button" onclick="RoutingManager.toggleAccordion('stops')">
           <div class="routing-acc-title">
             <i data-lucide="map-pin" style="color: #2563eb; width: 16px; height: 16px;"></i>
-            <span data-i18n="routing.stops_section">分析點位</span>
+            <span data-i18n="routing.step1_title">步驟 1：加入分析點</span>
             <span id="routing-stop-count" class="routing-count-badge">0 / 200</span>
           </div>
           <i data-lucide="chevron-down" class="routing-acc-icon"></i>
         </button>
         <div class="routing-accordion-content" id="routing-content-stops">
+          <div class="routing-step-subheading">
+            <i data-lucide="list-ordered" style="width: 13px; height: 13px; color: #475569;"></i>
+            <span data-i18n="routing.step2_title">步驟 2：設定起點、終點與停靠點</span>
+          </div>
+          <div class="routing-actions-toolbar">
             <button id="btn-routing-fix-start-end" class="btn btn-secondary btn-xs" type="button" onclick="RoutingManager.normalizeStartEndPositions()" title="將起點移至首位，終點移至末位" data-i18n-title="routing.fix_start_end">
               <i data-lucide="arrow-up-down" style="width: 13px; height: 13px;"></i><span data-i18n="routing.fix_start_end">將起終點移至首尾</span>
             </button>
@@ -761,6 +859,7 @@
             <button class="btn btn-secondary btn-xs" type="button" onclick="RoutingManager.clearPoints()" title="清除全部點位" data-i18n-title="routing.clear_points">
               <i data-lucide="trash-2" style="width: 13px; height: 13px;"></i><span data-i18n="routing.clear_points">清空點位</span>
             </button>
+          </div>
           <div class="routing-import-row">
             <button id="btn-routing-import-file" class="btn btn-secondary btn-xs" type="button" onclick="RoutingManager.openPointFile()">
               <i data-lucide="file-input" style="width: 13px; height: 13px;"></i><span data-i18n="routing.import_points">匯入點位 (SHP / KML / KMZ / GeoJSON / CSV)</span>
@@ -787,7 +886,7 @@
         <button class="routing-accordion-header" type="button" onclick="RoutingManager.toggleAccordion('barriers')">
           <div class="routing-acc-title">
             <i data-lucide="shield-alert" style="color: #ea580c; width: 16px; height: 16px;"></i>
-            <span data-i18n="routing.barriers_section">圓形屏障 (本機避障)</span>
+            <span data-i18n="routing.step3_title">步驟 3：加入圓形屏障（選用）</span>
             <span id="routing-barrier-count" class="routing-count-badge">0 / 20</span>
           </div>
           <i data-lucide="chevron-down" class="routing-acc-icon"></i>
@@ -828,7 +927,7 @@
         <button class="routing-accordion-header" type="button" onclick="RoutingManager.toggleAccordion('settings')">
           <div class="routing-acc-title">
             <i data-lucide="settings" style="color: #64748b; width: 16px; height: 16px;"></i>
-            <span data-i18n="routing.settings_section">路網設定與交通模式</span>
+            <span data-i18n="routing.step4_title">步驟 4：設定服務與交通模式</span>
           </div>
           <i data-lucide="chevron-down" class="routing-acc-icon"></i>
         </button>
@@ -888,7 +987,7 @@
         <button class="routing-accordion-header" type="button" onclick="RoutingManager.toggleAccordion('results')">
           <div class="routing-acc-title">
             <i data-lucide="clipboard-check" style="color: #059669; width: 16px; height: 16px;"></i>
-            <span data-i18n="routing.results_section">分析結果</span>
+            <span data-i18n="routing.step5_title">步驟 5：計算與查看結果</span>
             <span id="routing-result-badge" class="routing-count-badge" style="display: none;" data-i18n="routing.result_badge">已生成</span>
           </div>
           <i data-lucide="chevron-down" class="routing-acc-icon"></i>
@@ -942,7 +1041,7 @@
       </div>
       <details class="tgos-credentials">
         <summary data-i18n="tgos.cred_summary">TGOS API 憑證設定</summary>
-        <div class="tgos-credential-fields">
+        <form id="tgos-credentials-form" class="tgos-credential-fields" autocomplete="off" onsubmit="event.preventDefault(); return false;">
           <label for="tgos-app-id">AppID</label>
           <input id="tgos-app-id" type="text" spellcheck="false" autocomplete="off" placeholder="TGOS AppID" data-i18n-placeholder="tgos.app_id_placeholder" />
           <label for="tgos-api-key">APIKey</label>
@@ -951,7 +1050,7 @@
           <button id="btn-tgos-clear-credentials" class="btn btn-secondary-outline" type="button" onclick="TGOSAddressManager.clearCredentials()" style="margin-top: 8px; width: 100%;">
             <i data-lucide="shield-x" style="width: 14px; height: 14px;"></i><span data-i18n="tgos.clear_cred">清除 TGOS 憑證</span>
           </button>
-        </div>
+        </form>
       </details>
       <div id="tgos-status" class="tgos-status" data-i18n="tgos.status_init">請先設定 TGOS 憑證，再輸入地址定位。</div>
       <div id="tgos-results" class="tgos-results" hidden></div>

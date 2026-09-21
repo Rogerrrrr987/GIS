@@ -28,6 +28,22 @@ const TGOSAddressManager = {
     const apiKey = document.getElementById('tgos-api-key');
     if (appId) appId.value = localStorage.getItem(this.appIdKey) || '';
     if (apiKey) apiKey.value = sessionStorage.getItem(this.apiKeySessionKey) || '';
+
+    const credForm = document.getElementById('tgos-credentials-form');
+    if (credForm) {
+      credForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+      });
+    }
+
+    [appId, apiKey].forEach(input => {
+      input?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+        }
+      });
+    });
+
     document.getElementById('btn-tgos-locate')?.addEventListener('click', () => this.toggle());
     document.getElementById('tgos-address')?.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {
@@ -41,12 +57,20 @@ const TGOSAddressManager = {
   toggle() {
     if (!this.panel) return;
     this.isActive = !this.isActive;
-    this.panel.style.display = this.isActive ? 'block' : 'none';
+    this.panel.style.display = this.isActive ? 'flex' : 'none';
     document.getElementById('btn-tgos-locate')?.classList.toggle('active', this.isActive);
     if (this.isActive) {
-      if (typeof RoutingManager !== 'undefined' && RoutingManager.isActive) RoutingManager.toggle();
-      if (typeof GeoprocessingManager !== 'undefined' && GeoprocessingManager.isActive) GeoprocessingManager.close();
+      if (typeof PanelManager !== 'undefined') {
+        PanelManager.onPanelOpened('tgos');
+      } else {
+        if (typeof RoutingManager !== 'undefined' && RoutingManager.isActive) RoutingManager.toggle();
+        if (typeof GeoprocessingManager !== 'undefined' && GeoprocessingManager.isActive) GeoprocessingManager.close();
+      }
       setTimeout(() => document.getElementById('tgos-address')?.focus(), 0);
+    } else {
+      if (typeof PanelManager !== 'undefined') {
+        PanelManager.onPanelClosed('tgos');
+      }
     }
   },
 
@@ -55,6 +79,9 @@ const TGOSAddressManager = {
     this.isActive = false;
     this.panel.style.display = 'none';
     document.getElementById('btn-tgos-locate')?.classList.remove('active');
+    if (typeof PanelManager !== 'undefined') {
+      PanelManager.onPanelClosed('tgos');
+    }
   },
 
   setStatus(message, className = '') {

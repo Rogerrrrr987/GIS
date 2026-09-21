@@ -71,6 +71,10 @@ const DrawManager = {
       rotateMode: true
     });
 
+    if (typeof I18n !== 'undefined' && I18n.updateGeomanLang) {
+      I18n.updateGeomanLang(this.map);
+    }
+
     // Set default drawing styles
     this.updateGeomanPathOptions();
     
@@ -291,7 +295,7 @@ const DrawManager = {
     if (selectionActions) selectionActions.style.display = isSelected ? 'flex' : 'none';
     
     if (!isSelected) {
-      selectionLabel.textContent = '未選取圖元';
+      selectionLabel.textContent = typeof I18n !== 'undefined' ? I18n.t('style.no_selection', '未選取圖元') : '未選取圖元';
       return;
     }
 
@@ -302,7 +306,9 @@ const DrawManager = {
        this.currentStyle = style;
        selectionLabel.textContent = props.name || this.getLayerGeomType(layer);
     } else {
-       selectionLabel.textContent = `已選取 ${selectedFeatures.length} 個`;
+       selectionLabel.textContent = typeof I18n !== 'undefined'
+         ? I18n.t('style.selected_count', { count: selectedFeatures.length })
+         : `已選取 ${selectedFeatures.length} 個`;
        layer = selectedFeatures[0]; // use first for style baseline
        const props = layer.featureProps || {};
        this.currentStyle = { ...this.currentStyle, ...(props.style || {}) };
@@ -321,7 +327,9 @@ const DrawManager = {
     if (symbolInput) {
       symbolInput.value = style.symbol || 'default';
       symbolInput.disabled = !hasMarker;
-      symbolInput.title = hasMarker ? '設定點位符號' : '僅適用於點位圖元';
+      symbolInput.title = hasMarker
+        ? (typeof I18n !== 'undefined' ? I18n.t('style.point_symbol_title', '設定點位符號') : '設定點位符號')
+        : (typeof I18n !== 'undefined' ? I18n.t('style.point_symbol_only_marker', '僅適用於點位圖元') : '僅適用於點位圖元');
     }
     if (strokeColorInput) strokeColorInput.value = style.color || '#2563eb';
     if (fillColorInput) fillColorInput.value = style.fillColor || '#3b82f6';
@@ -343,12 +351,12 @@ const DrawManager = {
   handleCreate(layer, shapeType) {
     const activeLayer = LayerManager.getActiveLayer();
     if (!activeLayer) {
-      App.showToast('無作用中圖層，無法新增圖元', 'error');
+      App.showToast(typeof I18n !== 'undefined' ? I18n.t('layers.no_active_layer_error', '無作用中圖層，無法新增圖元') : '無作用中圖層，無法新增圖元', 'error');
       this.map.removeLayer(layer);
       return;
     }
     if (activeLayer.locked) {
-      App.showToast('作用中圖層已鎖定，無法新增圖元', 'error');
+      App.showToast(typeof I18n !== 'undefined' ? I18n.t('layers.locked_draw_error', '作用中圖層已鎖定，無法新增圖元') : '作用中圖層已鎖定，無法新增圖元', 'error');
       this.map.removeLayer(layer);
       return;
     }
@@ -549,7 +557,7 @@ const DrawManager = {
   /**
    * Prompt user to edit Name and Description
    */
-  promptEditLayer(layerId) {
+  async promptEditLayer(layerId) {
     const layer = this.getLayerById(layerId);
     if (!layer) return;
     if (this.isLayerLocked(layer)) {
@@ -559,16 +567,22 @@ const DrawManager = {
     if (!layer.featureProps) layer.featureProps = {};
 
     let changed = false;
-    const newName = prompt('請輸入圖元名稱:', layer.featureProps.name || '');
-    if (newName !== null) {
-      const value = newName.trim();
+    const nameLabel = typeof I18n !== 'undefined' ? I18n.t('draw.prompt_feature_name', '請輸入圖元名稱:') : '請輸入圖元名稱:';
+    const newName = App?.promptInput
+      ? await App.promptInput(nameLabel, nameLabel, layer.featureProps.name || '')
+      : null;
+    if (newName !== null && newName !== undefined) {
+      const value = String(newName).trim();
       changed = changed || value !== (layer.featureProps.name || '');
       layer.featureProps.name = value;
     }
 
-    const newDesc = prompt('請輸入圖元描述或備註:', layer.featureProps.description || '');
-    if (newDesc !== null) {
-      const value = newDesc.trim();
+    const descLabel = typeof I18n !== 'undefined' ? I18n.t('draw.prompt_feature_desc', '請輸入圖元描述或備註:') : '請輸入圖元描述或備註:';
+    const newDesc = App?.promptInput
+      ? await App.promptInput(descLabel, descLabel, layer.featureProps.description || '')
+      : null;
+    if (newDesc !== null && newDesc !== undefined) {
+      const value = String(newDesc).trim();
       changed = changed || value !== (layer.featureProps.description || '');
       layer.featureProps.description = value;
     }
