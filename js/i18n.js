@@ -1431,15 +1431,137 @@
       }
     },
 
+    geomanZhTw: {
+      tooltips: {
+        placeMarker: '點擊以放置標記',
+        firstVertex: '點擊以放置首個頂點',
+        continueLine: '點擊以繼續繪製線段',
+        finishLine: '點擊任一既有標記以完成',
+        finishPoly: '點擊首個標記以完成',
+        finishRect: '點擊以完成',
+        startCircle: '點擊以放置圓心',
+        finishCircle: '點擊以完成',
+        placeCircleMarker: '點擊以放置圓形標記'
+      },
+      actions: {
+        finish: '完成',
+        cancel: '取消',
+        removeLastVertex: '移除最後頂點'
+      },
+      buttonTitles: {
+        drawMarkerButton: '繪製標記',
+        drawPolyButton: '繪製多邊形',
+        drawLineButton: '繪製線段',
+        drawCircleButton: '繪製圓形',
+        drawRectButton: '繪製長方形',
+        editButton: '編輯圖層',
+        dragButton: '拖曳圖層',
+        cutButton: '裁切圖層',
+        deleteButton: '刪除圖層',
+        drawCircleMarkerButton: '繪製圓形標記',
+        snappingButton: '吸附拖曳標記至其他圖層及頂點',
+        pinningButton: '固定共享頂點',
+        rotateButton: '旋轉圖層',
+        drawTextButton: '繪製文字'
+      }
+    },
+
     /**
      * Update Leaflet Geoman toolbar and tooltips
      */
     updateGeomanLang(map) {
       if (!map || !map.pm) return;
-      const lang = this.currentLang === 'zh-TW' ? 'zh' : 'en';
+      const isZh = this.currentLang === 'zh-TW';
+      const lang = isZh ? 'zh' : 'en';
       try {
         if (typeof map.pm.setLang === 'function') {
-          map.pm.setLang(lang);
+          if (isZh) {
+            map.pm.setLang('zh', this.geomanZhTw, 'en');
+          } else {
+            map.pm.setLang('en');
+          }
+        }
+      } catch (_) {}
+
+      try {
+        const container = (typeof map.getContainer === 'function' ? map.getContainer() : null) || (typeof document !== 'undefined' ? document : null);
+        if (container && container.querySelectorAll) {
+          const zhMap = {
+            '绘制标记': '繪製標記',
+            '绘制线段': '繪製線段',
+            '绘制长方形': '繪製長方形',
+            '绘制多边形': '繪製多邊形',
+            '绘制圆形': '繪製圓形',
+            '编辑图层': '編輯圖層',
+            '拖拽图层': '拖曳圖層',
+            '剪切图层': '裁切圖層',
+            '裁切图层': '裁切圖層',
+            '删除图层': '刪除圖層',
+            '旋转图层': '旋轉圖層',
+            'Draw Marker': '繪製標記',
+            'Draw Polyline': '繪製線段',
+            'Draw Rectangle': '繪製長方形',
+            'Draw Polygon': '繪製多邊形',
+            'Draw Circle': '繪製圓形',
+            'Edit Layers': '編輯圖層',
+            'Drag Layers': '拖曳圖層',
+            'Cut Layers': '裁切圖層',
+            'Removal Mode': '刪除圖層',
+            'Rotate Mode': '旋轉圖層',
+            'Rotate Layers': '旋轉圖層'
+          };
+          const enMap = {
+            '繪製標記': 'Draw Marker',
+            '繪製線段': 'Draw Polyline',
+            '繪製長方形': 'Draw Rectangle',
+            '繪製多邊形': 'Draw Polygon',
+            '繪製圓形': 'Draw Circle',
+            '編輯圖層': 'Edit Layers',
+            '拖曳圖層': 'Drag Layers',
+            '裁切圖層': 'Cut Layers',
+            '剪切圖層': 'Cut Layers',
+            '刪除圖層': 'Removal Mode',
+            '旋轉圖層': 'Rotate Layers',
+            '绘制标记': 'Draw Marker',
+            '绘制线段': 'Draw Polyline',
+            '绘制长方形': 'Draw Rectangle',
+            '绘制多边形': 'Draw Polygon',
+            '绘制圆形': 'Draw Circle',
+            '编辑图层': 'Edit Layers',
+            '拖拽图层': 'Drag Layers',
+            '剪切图层': 'Cut Layers',
+            '删除图层': 'Removal Mode',
+            '旋转图层': 'Rotate Layers'
+          };
+          const targetMap = isZh ? zhMap : enMap;
+          const containers = container.querySelectorAll('.leaflet-pm-toolbar .button-container');
+          containers.forEach(box => {
+            const currentTitle = box.getAttribute('title');
+            if (currentTitle && targetMap[currentTitle]) {
+              const newTitle = targetMap[currentTitle];
+              box.setAttribute('title', newTitle);
+              box.setAttribute('aria-label', newTitle);
+              const innerBtn = box.querySelector('a, button');
+              if (innerBtn) {
+                innerBtn.setAttribute('title', newTitle);
+                innerBtn.setAttribute('aria-label', newTitle);
+              }
+            }
+          });
+
+          const buttons = container.querySelectorAll('.leaflet-pm-toolbar a, .leaflet-pm-toolbar button, .leaflet-buttons-control-button');
+          buttons.forEach(btn => {
+            const currentTitle = btn.getAttribute('title');
+            if (currentTitle && targetMap[currentTitle]) {
+              btn.setAttribute('title', targetMap[currentTitle]);
+            }
+            const currentAria = btn.getAttribute('aria-label');
+            if (currentAria && targetMap[currentAria]) {
+              btn.setAttribute('aria-label', targetMap[currentAria]);
+            } else if (btn.getAttribute('title')) {
+              btn.setAttribute('aria-label', btn.getAttribute('title'));
+            }
+          });
         }
       } catch (_) {}
     }

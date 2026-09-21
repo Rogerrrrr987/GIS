@@ -14,9 +14,15 @@ const TableManager = {
   lastClickedIndex: null,
   pagedFeatures: [],
   filteredFeatures: [],
+  lastTriggerElement: null,
 
   init() {
     this.drawer = document.getElementById('attribute-drawer');
+    if (this.drawer) {
+      this.drawer.inert = true;
+      this.drawer.setAttribute('inert', '');
+      this.drawer.setAttribute('aria-hidden', 'true');
+    }
     this.tableBody = document.getElementById('attribute-table-body');
     this.tableHeader = document.getElementById('attribute-table-header');
     this.featureCountBadge = document.getElementById('drawer-feature-count');
@@ -137,23 +143,54 @@ const TableManager = {
     if (activeId) this.layerSelect.value = activeId;
   },
 
-  toggle() {
+  toggle(triggerEl) {
     if (this.isOpen) {
       this.close();
     } else {
-      this.open();
+      this.open(triggerEl);
     }
   },
 
-  open() {
+  open(triggerEl) {
+    if (triggerEl && typeof triggerEl.focus === 'function') {
+      this.lastTriggerElement = triggerEl;
+    } else if (typeof document !== 'undefined' && document.activeElement && document.activeElement !== document.body && (!this.drawer || !this.drawer.contains(document.activeElement))) {
+      this.lastTriggerElement = document.activeElement;
+    }
     this.isOpen = true;
-    if (this.drawer) this.drawer.classList.add('open');
+    if (this.drawer) {
+      this.drawer.classList.add('open');
+      this.drawer.inert = false;
+      this.drawer.removeAttribute('inert');
+      this.drawer.setAttribute('aria-hidden', 'false');
+    }
     this.render();
   },
 
   close() {
     this.isOpen = false;
-    if (this.drawer) this.drawer.classList.remove('open');
+    if (this.drawer) {
+      this.drawer.classList.remove('open');
+      this.drawer.inert = true;
+      this.drawer.setAttribute('inert', '');
+      this.drawer.setAttribute('aria-hidden', 'true');
+    }
+    let target = (this.lastTriggerElement && typeof this.lastTriggerElement.focus === 'function' && (typeof document === 'undefined' || !document.contains || document.contains(this.lastTriggerElement)))
+      ? this.lastTriggerElement
+      : (typeof document !== 'undefined' ? (document.getElementById('btn-toggle-table') || document.getElementById('tools-dropdown-btn')) : null);
+
+    if (target && target.closest && target.closest('.dropdown') && !target.closest('.dropdown').classList.contains('open')) {
+      const dropdownToggle = target.closest('.dropdown').querySelector('#tools-dropdown-btn, .btn, button');
+      if (dropdownToggle && typeof dropdownToggle.focus === 'function') {
+        target = dropdownToggle;
+      }
+    }
+
+    if (target && typeof target.focus === 'function') {
+      try {
+        target.focus();
+      } catch (_) {}
+    }
   },
 
   escapeHtml(val) {

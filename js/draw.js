@@ -71,6 +71,10 @@ const DrawManager = {
       rotateMode: true
     });
 
+    if (typeof I18n !== 'undefined' && I18n.updateGeomanLang) {
+      I18n.updateGeomanLang(this.map);
+    }
+
     // Set default drawing styles
     this.updateGeomanPathOptions();
     

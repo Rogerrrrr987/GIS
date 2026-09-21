@@ -667,7 +667,7 @@ const App = {
     const tableBtn = document.getElementById('btn-toggle-table');
     const closeDrawerBtn = document.getElementById('btn-close-drawer');
     if (tableBtn) {
-      tableBtn.addEventListener('click', () => TableManager.toggle());
+      tableBtn.addEventListener('click', (e) => TableManager.toggle(e.currentTarget || tableBtn));
     }
     if (closeDrawerBtn) {
       closeDrawerBtn.addEventListener('click', () => TableManager.close());

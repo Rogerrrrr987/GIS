@@ -28,6 +28,22 @@ const TGOSAddressManager = {
     const apiKey = document.getElementById('tgos-api-key');
     if (appId) appId.value = localStorage.getItem(this.appIdKey) || '';
     if (apiKey) apiKey.value = sessionStorage.getItem(this.apiKeySessionKey) || '';
+
+    const credForm = document.getElementById('tgos-credentials-form');
+    if (credForm) {
+      credForm.addEventListener('submit', (event) => {
+        event.preventDefault();
+      });
+    }
+
+    [appId, apiKey].forEach(input => {
+      input?.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+        }
+      });
+    });
+
     document.getElementById('btn-tgos-locate')?.addEventListener('click', () => this.toggle());
     document.getElementById('tgos-address')?.addEventListener('keydown', (event) => {
       if (event.key === 'Enter') {

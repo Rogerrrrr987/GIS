@@ -311,7 +311,7 @@
     </div>
 
     <!-- Bottom Attribute Table Drawer -->
-    <div class="attribute-drawer" id="attribute-drawer">
+    <div class="attribute-drawer" id="attribute-drawer" inert aria-hidden="true">
       <div class="drawer-header">
         <div class="drawer-title">
           <i data-lucide="layers" style="width: 18px; height: 18px; color: #2563eb;"></i>
@@ -1041,7 +1041,7 @@
       </div>
       <details class="tgos-credentials">
         <summary data-i18n="tgos.cred_summary">TGOS API 憑證設定</summary>
-        <div class="tgos-credential-fields">
+        <form id="tgos-credentials-form" class="tgos-credential-fields" autocomplete="off" onsubmit="event.preventDefault(); return false;">
           <label for="tgos-app-id">AppID</label>
           <input id="tgos-app-id" type="text" spellcheck="false" autocomplete="off" placeholder="TGOS AppID" data-i18n-placeholder="tgos.app_id_placeholder" />
           <label for="tgos-api-key">APIKey</label>
@@ -1050,7 +1050,7 @@
           <button id="btn-tgos-clear-credentials" class="btn btn-secondary-outline" type="button" onclick="TGOSAddressManager.clearCredentials()" style="margin-top: 8px; width: 100%;">
             <i data-lucide="shield-x" style="width: 14px; height: 14px;"></i><span data-i18n="tgos.clear_cred">清除 TGOS 憑證</span>
           </button>
-        </div>
+        </form>
       </details>
       <div id="tgos-status" class="tgos-status" data-i18n="tgos.status_init">請先設定 TGOS 憑證，再輸入地址定位。</div>
       <div id="tgos-results" class="tgos-results" hidden></div>
