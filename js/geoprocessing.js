@@ -89,6 +89,11 @@
     init(map) {
       this.map = map;
       this.panel = document.getElementById('geoprocessing-panel');
+      if (this.panel) {
+        this.panel.inert = true;
+        this.panel.setAttribute('inert', '');
+        this.panel.setAttribute('aria-hidden', 'true');
+      }
 
       if (this.panel && typeof L !== 'undefined' && L.DomEvent) {
         L.DomEvent.disableClickPropagation(this.panel);
@@ -100,7 +105,7 @@
 
     bindUi() {
       document.getElementById('btn-geoprocessing')?.addEventListener('click', () => this.toggle());
-      document.getElementById('btn-gp-close')?.addEventListener('click', () => this.close());
+      document.getElementById('btn-gp-close')?.addEventListener('click', () => this.close({ restoreFocus: true }));
       document.getElementById('btn-gp-cancel')?.addEventListener('click', () => this.cancel());
       document.getElementById('btn-gp-run')?.addEventListener('click', () => this.runCurrentTool());
 
@@ -135,27 +140,56 @@
 
       this.isActive = true;
       this.panel.style.display = 'flex';
-      document.getElementById('btn-geoprocessing')?.classList.add('active');
+      this.panel.inert = false;
+      this.panel.removeAttribute('inert');
+      this.panel.setAttribute('aria-hidden', 'false');
+      const gpBtn = document.getElementById('btn-geoprocessing');
+      gpBtn?.classList.add('active');
+      gpBtn?.setAttribute('aria-expanded', 'true');
 
       this.selectTool(toolName);
+      window.requestAnimationFrame(() => {
+        const closeBtn = document.getElementById('btn-gp-close');
+        if (closeBtn && typeof closeBtn.focus === 'function') closeBtn.focus();
+      });
     },
 
-    close() {
+    close({ restoreFocus = true } = {}) {
       if (!this.panel) return;
+      const wasOpen = this.isActive;
       if (this.isBusy) {
         this.abortRequested = true;
       }
       this.isActive = false;
       this.panel.style.display = 'none';
-      document.getElementById('btn-geoprocessing')?.classList.remove('active');
+      this.panel.inert = true;
+      this.panel.setAttribute('inert', '');
+      this.panel.setAttribute('aria-hidden', 'true');
+      const gpBtn = document.getElementById('btn-geoprocessing');
+      gpBtn?.classList.remove('active');
+      gpBtn?.setAttribute('aria-expanded', 'false');
       if (typeof PanelManager !== 'undefined') {
-        PanelManager.onPanelClosed('geoprocessing');
+        PanelManager.onPanelClosed('geoprocessing', { restoreFocus });
+      }
+      if (restoreFocus && wasOpen) {
+        this.restoreFocus();
+      }
+    },
+
+    restoreFocus() {
+      let target = document.getElementById('btn-geoprocessing');
+      if (target && target.closest && target.closest('.dropdown') && !target.closest('.dropdown').classList.contains('open')) {
+        const dropdownToggle = target.closest('.dropdown').querySelector('#tools-dropdown-btn, .btn, button');
+        if (dropdownToggle && typeof dropdownToggle.focus === 'function') target = dropdownToggle;
+      }
+      if (target && typeof target.focus === 'function') {
+        try { target.focus(); } catch (_) {}
       }
     },
 
     toggle(toolName = 'buffer') {
       if (this.isActive) {
-        this.close();
+        this.close({ restoreFocus: true });
       } else {
         this.open(toolName);
       }

@@ -53,6 +53,11 @@ window.RoutingManager = {
   init(map) {
     this.map = map;
     this.panel = document.getElementById('routing-panel');
+    if (this.panel) {
+      this.panel.inert = true;
+      this.panel.setAttribute('inert', '');
+      this.panel.setAttribute('aria-hidden', 'true');
+    }
     if (this.panel && typeof L !== 'undefined' && L.DomEvent) {
       L.DomEvent.disableClickPropagation(this.panel);
       L.DomEvent.disableScrollPropagation(this.panel);
@@ -485,12 +490,21 @@ window.RoutingManager = {
   // PANEL & MAP INTERACTIONS (LEAFLET WARNING ELIMINATION)
   // =========================================================================
 
-  toggle() {
+  toggle(restoreFocus = true) {
     if (!this.map || !this.panel) return;
     this.isActive = !this.isActive;
     this.panel.style.display = this.isActive ? 'flex' : 'none';
+    this.panel.inert = !this.isActive;
+    if (this.isActive) {
+      this.panel.removeAttribute('inert');
+    } else {
+      this.panel.setAttribute('inert', '');
+    }
+    this.panel.setAttribute('aria-hidden', String(!this.isActive));
     this.map.getContainer().classList.toggle('map-routing-mode', this.isActive);
-    document.getElementById('btn-routing')?.classList.toggle('active', this.isActive);
+    const routingBtn = document.getElementById('btn-routing');
+    routingBtn?.classList.toggle('active', this.isActive);
+    routingBtn?.setAttribute('aria-expanded', String(this.isActive));
 
     this.map.off('click', this.handleMapClick);
 
@@ -504,13 +518,37 @@ window.RoutingManager = {
       this.disableMapEditingModes();
       this.map.on('click', this.handleMapClick);
       this.setStatus(typeof I18n !== 'undefined' ? I18n.t('routing.click_map_add_points') : '在地圖上依序點擊加入起點、停靠點與終點；或由上方按鈕匯入點位。');
+      window.requestAnimationFrame(() => {
+        const closeBtn = this.panel?.querySelector('.modal-close');
+        if (closeBtn && typeof closeBtn.focus === 'function') closeBtn.focus();
+      });
     } else {
       this.inputMode = 'stops';
       if (typeof PanelManager !== 'undefined') {
-        PanelManager.onPanelClosed('routing');
+        PanelManager.onPanelClosed('routing', { restoreFocus });
+      }
+      if (restoreFocus) {
+        this.restoreFocus();
       }
     }
     this.render();
+  },
+
+  close({ restoreFocus = false } = {}) {
+    if (this.isActive) {
+      this.toggle(restoreFocus);
+    }
+  },
+
+  restoreFocus() {
+    let target = document.getElementById('btn-routing');
+    if (target && target.closest && target.closest('.dropdown') && !target.closest('.dropdown').classList.contains('open')) {
+      const dropdownToggle = target.closest('.dropdown').querySelector('#tools-dropdown-btn, .btn, button');
+      if (dropdownToggle && typeof dropdownToggle.focus === 'function') target = dropdownToggle;
+    }
+    if (target && typeof target.focus === 'function') {
+      try { target.focus(); } catch (_) {}
+    }
   },
 
   disableMapEditingModes() {

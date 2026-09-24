@@ -642,8 +642,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn btn-secondary" onclick="RoutingManager.rejectOsrmConsent()" data-i18n="common.cancel">取消</button>
-        <button class="btn btn-primary" onclick="RoutingManager.approveOsrmConsent()" data-i18n="modal.consent_approve">同意並送出</button>
+        <button id="btn-routing-consent-cancel" class="btn btn-secondary" onclick="RoutingManager.rejectOsrmConsent()" data-i18n="common.cancel">取消</button>
+        <button id="btn-routing-consent-approve" class="btn btn-primary" onclick="RoutingManager.approveOsrmConsent()" data-i18n="modal.consent_approve">同意並送出</button>
       </div>
     </div>
   </div>
@@ -820,7 +820,7 @@
   </div>
 
   <!-- Routing Panel (P2 Multi-point Route Analysis) -->
-  <div id="routing-panel" class="floating-panel routing-panel" style="display: none;">
+  <div id="routing-panel" class="floating-panel routing-panel" style="display: none;" aria-hidden="true" inert>
     <div class="routing-header">
       <h3>
         <i data-lucide="route" style="width: 18px; height: 18px; color: #0284c7;"></i>
@@ -1026,7 +1026,7 @@
   </div>
 
   <!-- TGOS Address Locator Panel -->
-  <div id="tgos-locator-panel" class="floating-panel tgos-locator-panel" style="display: none;">
+  <div id="tgos-locator-panel" class="floating-panel tgos-locator-panel" style="display: none;" aria-hidden="true" inert>
     <div class="tgos-locator-header">
       <h3><i data-lucide="map-pin-search"></i><span data-i18n="tgos.title">TGOS 地址定位</span></h3>
       <button class="modal-close" type="button" onclick="TGOSAddressManager.close()" aria-label="關閉 TGOS 地址定位" data-i18n-aria="tgos.close_title">&times;</button>
@@ -1063,7 +1063,7 @@
   </div>
 
   <!-- Geoprocessing Toolbox Floating Panel -->
-  <div id="geoprocessing-panel" class="floating-panel geoprocessing-panel" style="display: none;">
+  <div id="geoprocessing-panel" class="floating-panel geoprocessing-panel" style="display: none;" aria-hidden="true" inert>
     <div class="gp-panel-header">
       <h3><i data-lucide="box" style="color: #2563eb; width: 18px; height: 18px;"></i><span data-i18n="gp.title">空間處理工具箱</span></h3>
       <button class="modal-close" id="btn-gp-close" type="button" aria-label="關閉工具箱" data-i18n-aria="gp.close_title">&times;</button>

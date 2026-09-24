@@ -184,11 +184,13 @@ window.LayerManager = {
   // --- Core State Management ---
 
   generateId() {
-    return 'layer_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    this._layerSeq = (this._layerSeq || 0) + 1;
+    return 'layer_' + Date.now() + '_' + this._layerSeq + '_' + Math.random().toString(36).slice(2, 7);
   },
 
   generateGroupId() {
-    return 'group_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    this._groupSeq = (this._groupSeq || 0) + 1;
+    return 'group_' + Date.now() + '_' + this._groupSeq + '_' + Math.random().toString(36).slice(2, 7);
   },
 
   createLayer(name, geometryType = 'any', groupId = null) {

@@ -15,7 +15,7 @@ const CatalogManager = {
     this.fileInput = document.getElementById('catalog-file-input');
 
     document.getElementById('btn-toggle-catalog')?.addEventListener('click', () => this.toggle());
-    document.getElementById('btn-close-catalog')?.addEventListener('click', () => this.hide());
+    document.getElementById('btn-close-catalog')?.addEventListener('click', () => this.hide({ restoreFocus: true }));
     document.getElementById('btn-catalog-add-file')?.addEventListener('click', () => this.fileInput?.click());
     this.fileInput?.addEventListener('change', async event => {
       const files = Array.from(event.target.files || []);
@@ -33,7 +33,7 @@ const CatalogManager = {
 
   toggle() {
     const isNowOpen = Boolean(this.panel?.classList.contains('is-hidden'));
-    this.setOpen(isNowOpen);
+    this.setOpen(isNowOpen, { restoreFocus: !isNowOpen });
     if (isNowOpen && typeof PanelManager !== 'undefined' && PanelManager.activePanel) {
       PanelManager.close(PanelManager.activePanel);
     }
@@ -42,14 +42,23 @@ const CatalogManager = {
     }
   },
 
-  hide() {
-    this.setOpen(false);
+  hide({ restoreFocus = false } = {}) {
+    this.setOpen(false, { restoreFocus });
   },
 
-  setOpen(isOpen) {
+  setOpen(isOpen, { restoreFocus = false } = {}) {
     if (!this.panel) return;
+    const wasOpen = !this.panel.classList.contains('is-hidden');
     this.panel.classList.toggle('is-hidden', !isOpen);
     this.syncVisibilityState();
+    if (isOpen) {
+      window.requestAnimationFrame(() => {
+        const closeBtn = document.getElementById('btn-close-catalog');
+        if (closeBtn && typeof closeBtn.focus === 'function') closeBtn.focus();
+      });
+    } else if (restoreFocus && wasOpen) {
+      try { document.getElementById('btn-toggle-catalog')?.focus(); } catch (_) {}
+    }
   },
 
   syncVisibilityState() {
@@ -57,7 +66,11 @@ const CatalogManager = {
     const isHidden = this.panel.classList.contains('is-hidden');
     this.panel.setAttribute('aria-hidden', String(isHidden));
     this.panel.inert = isHidden;
-    document.getElementById('btn-toggle-catalog')?.setAttribute('aria-expanded', String(!isHidden));
+    const toggleBtn = document.getElementById('btn-toggle-catalog');
+    if (toggleBtn) {
+      toggleBtn.setAttribute('aria-expanded', String(!isHidden));
+      toggleBtn.classList.toggle('active', !isHidden);
+    }
   },
 
   getRecent() {

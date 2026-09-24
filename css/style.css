@@ -46,7 +46,7 @@ body {
   justify-content: space-between;
   padding: 0 16px;
   border-bottom: 1px solid #334155;
-  z-index: 1000;
+  z-index: 1200;
   user-select: none;
 }
 
@@ -612,7 +612,7 @@ body {
 /* ArcGIS-inspired data catalog */
 .catalog-panel {
   position: absolute;
-  z-index: 880;
+  z-index: 900;
   top: 0;
   right: 0;
   bottom: 0;
@@ -696,7 +696,7 @@ body {
 /* Voluntary project support panel. Payment stays on the external provider. */
 .support-panel {
   position: absolute;
-  z-index: 1015;
+  z-index: 950;
   top: 0;
   right: 0;
   bottom: 0;
@@ -782,7 +782,7 @@ body {
   background: #ffffff;
   border-top: 2px solid #3b82f6;
   box-shadow: 0 -4px 15px rgba(0, 0, 0, 0.15);
-  z-index: 900;
+  z-index: 1000;
   display: flex;
   flex-direction: column;
   transition: transform 0.25s ease-in-out;
@@ -998,7 +998,7 @@ body {
   font-size: 0.76rem;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   border-top: 1px solid #334155;
-  z-index: 1000;
+  z-index: 1050;
   user-select: none;
 }
 
@@ -1284,7 +1284,7 @@ body {
   width: 350px;
   max-width: min(94vw, 360px);
   max-height: calc(100vh - 90px);
-  z-index: 1000;
+  z-index: 950;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -1489,7 +1489,7 @@ body {
   width: 370px;
   max-width: min(94vw, 380px);
   max-height: calc(100vh - 90px);
-  z-index: 1010;
+  z-index: 950;
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -2064,7 +2064,7 @@ body {
   max-height: calc(100vh - 84px);
   display: flex;
   flex-direction: column;
-  z-index: 1010;
+  z-index: 950;
   padding: 0;
   overflow: hidden;
   box-shadow: 0 4px 20px rgba(15, 23, 42, 0.18);
@@ -2509,6 +2509,7 @@ body {
     backdrop-filter: none;
     box-shadow: -5px 0 18px rgba(15, 23, 42, 0.12);
     overflow: hidden;
+    z-index: 950;
   }
 
   .app-workspace:has(.style-panel.has-selection) .basemap-control {

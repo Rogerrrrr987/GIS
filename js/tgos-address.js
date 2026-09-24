@@ -19,6 +19,11 @@ const TGOSAddressManager = {
   init(map) {
     this.map = map;
     this.panel = document.getElementById('tgos-locator-panel');
+    if (this.panel) {
+      this.panel.inert = true;
+      this.panel.setAttribute('inert', '');
+      this.panel.setAttribute('aria-hidden', 'true');
+    }
     this.markerLayer = L.layerGroup().addTo(map);
     if (this.panel && L.DomEvent) {
       L.DomEvent.disableClickPropagation(this.panel);
@@ -54,11 +59,20 @@ const TGOSAddressManager = {
     this.renderControls();
   },
 
-  toggle() {
+  toggle(restoreFocus = true) {
     if (!this.panel) return;
     this.isActive = !this.isActive;
     this.panel.style.display = this.isActive ? 'flex' : 'none';
-    document.getElementById('btn-tgos-locate')?.classList.toggle('active', this.isActive);
+    this.panel.inert = !this.isActive;
+    if (this.isActive) {
+      this.panel.removeAttribute('inert');
+    } else {
+      this.panel.setAttribute('inert', '');
+    }
+    this.panel.setAttribute('aria-hidden', String(!this.isActive));
+    const locateBtn = document.getElementById('btn-tgos-locate');
+    locateBtn?.classList.toggle('active', this.isActive);
+    locateBtn?.setAttribute('aria-expanded', String(this.isActive));
     if (this.isActive) {
       if (typeof PanelManager !== 'undefined') {
         PanelManager.onPanelOpened('tgos');
@@ -69,18 +83,41 @@ const TGOSAddressManager = {
       setTimeout(() => document.getElementById('tgos-address')?.focus(), 0);
     } else {
       if (typeof PanelManager !== 'undefined') {
-        PanelManager.onPanelClosed('tgos');
+        PanelManager.onPanelClosed('tgos', { restoreFocus });
+      }
+      if (restoreFocus) {
+        this.restoreFocus();
       }
     }
   },
 
-  close() {
+  close({ restoreFocus = true } = {}) {
     if (!this.panel) return;
+    const wasOpen = this.isActive;
     this.isActive = false;
     this.panel.style.display = 'none';
-    document.getElementById('btn-tgos-locate')?.classList.remove('active');
+    this.panel.inert = true;
+    this.panel.setAttribute('inert', '');
+    this.panel.setAttribute('aria-hidden', 'true');
+    const locateBtn = document.getElementById('btn-tgos-locate');
+    locateBtn?.classList.remove('active');
+    locateBtn?.setAttribute('aria-expanded', 'false');
     if (typeof PanelManager !== 'undefined') {
-      PanelManager.onPanelClosed('tgos');
+      PanelManager.onPanelClosed('tgos', { restoreFocus });
+    }
+    if (restoreFocus && wasOpen) {
+      this.restoreFocus();
+    }
+  },
+
+  restoreFocus() {
+    let target = document.getElementById('btn-tgos-locate');
+    if (target && target.closest && target.closest('.dropdown') && !target.closest('.dropdown').classList.contains('open')) {
+      const dropdownToggle = target.closest('.dropdown').querySelector('#tools-dropdown-btn, .btn, button');
+      if (dropdownToggle && typeof dropdownToggle.focus === 'function') target = dropdownToggle;
+    }
+    if (target && typeof target.focus === 'function') {
+      try { target.focus(); } catch (_) {}
     }
   },
 

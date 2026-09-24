@@ -67,16 +67,18 @@ const PanelManager = {
     // reopened explicitly after leaving the tool instead of competing for map space.
     if (typeof CatalogManager !== 'undefined') CatalogManager.hide();
     if (typeof SupportPanelManager !== 'undefined') SupportPanelManager.close();
+    document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
 
     const target = this.panels[name];
     if (target) {
       target.open(...args);
       this.activePanel = name;
       this.syncButtonStates();
+      this.focusPanelContent(name);
     }
   },
 
-  close(name) {
+  close(name, { restoreFocus = true } = {}) {
     const target = this.panels[name];
     if (target) {
       target.close();
@@ -84,13 +86,54 @@ const PanelManager = {
         this.activePanel = null;
       }
       this.syncButtonStates();
+      if (restoreFocus) {
+        this.restorePanelFocus(name);
+      }
     }
+  },
+
+  restorePanelFocus(name) {
+    const config = this.panels[name];
+    let target = config?.buttonId ? document.getElementById(config.buttonId) : null;
+    if (target && target.closest && target.closest('.dropdown') && !target.closest('.dropdown').classList.contains('open')) {
+      const dropdownToggle = target.closest('.dropdown').querySelector('#tools-dropdown-btn, .btn, button');
+      if (dropdownToggle && typeof dropdownToggle.focus === 'function') {
+        target = dropdownToggle;
+      }
+    }
+    if (target && typeof target.focus === 'function') {
+      try {
+        target.focus();
+      } catch (_) {}
+    }
+  },
+
+  focusPanelContent(name) {
+    if (typeof window === 'undefined' || typeof requestAnimationFrame !== 'function') return;
+    window.requestAnimationFrame(() => {
+      const config = this.panels[name];
+      const panelEl = config?.panelId ? document.getElementById(config.panelId) : null;
+      if (!panelEl) return;
+      if (name === 'tgos') {
+        const addrInput = document.getElementById('tgos-address');
+        if (addrInput && typeof addrInput.focus === 'function') {
+          addrInput.focus();
+          return;
+        }
+      }
+      const focusable = panelEl.querySelector('.modal-close, button:not([disabled]), input:not([disabled]), select:not([disabled])');
+      if (focusable && typeof focusable.focus === 'function') {
+        try {
+          focusable.focus();
+        } catch (_) {}
+      }
+    });
   },
 
   toggle(name, ...args) {
     const target = this.panels[name];
     if (target && target.isOpen()) {
-      this.close(name);
+      this.close(name, { restoreFocus: true });
     } else {
       this.open(name, ...args);
     }
@@ -103,15 +146,21 @@ const PanelManager = {
       }
     });
     if (typeof CatalogManager !== 'undefined') CatalogManager.hide();
+    if (typeof SupportPanelManager !== 'undefined') SupportPanelManager.close();
+    document.querySelectorAll('.dropdown.open').forEach(d => d.classList.remove('open'));
     this.activePanel = name;
     this.syncButtonStates();
+    this.focusPanelContent(name);
   },
 
-  onPanelClosed(name) {
+  onPanelClosed(name, { restoreFocus = false } = {}) {
     if (this.activePanel === name) {
       this.activePanel = null;
     }
     this.syncButtonStates();
+    if (restoreFocus) {
+      this.restorePanelFocus(name);
+    }
   },
 
   syncButtonStates() {
@@ -124,6 +173,14 @@ const PanelManager = {
       if (p.buttonId) {
         const btn = document.getElementById(p.buttonId);
         btn?.classList.toggle('active', isCurrentlyOpen);
+        btn?.setAttribute('aria-expanded', String(isCurrentlyOpen));
+      }
+      if (p.panelId) {
+        const el = document.getElementById(p.panelId);
+        if (el) {
+          el.setAttribute('aria-hidden', String(!isCurrentlyOpen));
+          el.inert = !isCurrentlyOpen;
+        }
       }
       if (isCurrentlyOpen) anyActive = true;
     });
@@ -155,7 +212,16 @@ const PanelManager = {
       return;
     }
 
-    // 2. Check if RoutingManager is in barrier addition mode
+    // 2. Closable menus / popups: Must dismiss topmost dropdown menu before touching background tools
+    const openMenus = Array.from(document.querySelectorAll('.dropdown-menu.open, .dropdown.open'));
+    if (openMenus.length > 0) {
+      openMenus.forEach(m => m.classList.remove('open'));
+      event?.preventDefault?.();
+      event?.stopPropagation?.();
+      return;
+    }
+
+    // 3. Check if RoutingManager is in barrier addition mode
     if (typeof RoutingManager !== 'undefined' && RoutingManager.isActive && RoutingManager.inputMode === 'barriers') {
       RoutingManager.toggleBarrierMode();
       event?.preventDefault?.();
@@ -163,18 +229,18 @@ const PanelManager = {
       return;
     }
 
-    // 3. Check if a large tool panel is open
+    // 4. Check if a large tool panel is open
     for (const key of Object.keys(this.panels)) {
       const p = this.panels[key];
       if (p && p.isOpen && p.isOpen()) {
-        this.close(key);
+        this.close(key, { restoreFocus: true });
         event?.preventDefault?.();
         event?.stopPropagation?.();
         return;
       }
     }
 
-    // 4. Support panel
+    // 5. Support panel
     if (typeof SupportPanelManager !== 'undefined' && SupportPanelManager.isOpen()) {
       SupportPanelManager.close({ restoreFocus: true });
       event?.preventDefault?.();
@@ -182,20 +248,20 @@ const PanelManager = {
       return;
     }
 
-    // 5. Attribute table drawer
-    if (typeof TableManager !== 'undefined' && (TableManager.isOpen || TableManager.drawer?.classList.contains('open'))) {
-      TableManager.close();
+    // 6. Data catalog panel
+    if (typeof CatalogManager !== 'undefined' && CatalogManager.panel && !CatalogManager.panel.classList.contains('is-hidden')) {
+      CatalogManager.hide({ restoreFocus: true });
       event?.preventDefault?.();
       event?.stopPropagation?.();
       return;
     }
 
-    // 6. Closable menus / popups
-    const openMenus = Array.from(document.querySelectorAll('.dropdown-menu.open, .dropdown.open'));
-    if (openMenus.length > 0) {
-      openMenus.forEach(m => m.classList.remove('open'));
+    // 7. Attribute table drawer
+    if (typeof TableManager !== 'undefined' && (TableManager.isOpen || TableManager.drawer?.classList.contains('open'))) {
+      TableManager.close();
       event?.preventDefault?.();
       event?.stopPropagation?.();
+      return;
     }
   }
 };
