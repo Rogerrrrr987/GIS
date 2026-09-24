@@ -118,8 +118,12 @@ window.RoutingManager = {
     document.getElementById('routing-shp-truncate-check')?.addEventListener('change', () => this.updateFilePreview());
 
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape' && this.inputMode === 'barriers') {
-        this.toggleBarrierMode();
+      if (e.key === 'Escape' && this.isActive && this.inputMode === 'barriers') {
+        if (typeof PanelManager === 'undefined') {
+          this.exitBarrierMode();
+          e.preventDefault();
+          e.stopPropagation();
+        }
       }
     });
   },
@@ -501,14 +505,33 @@ window.RoutingManager = {
       this.panel.setAttribute('inert', '');
     }
     this.panel.setAttribute('aria-hidden', String(!this.isActive));
-    this.map.getContainer().classList.toggle('map-routing-mode', this.isActive);
+
+    const mapEl = document.getElementById('map');
+    if (this.map && typeof this.map.getContainer === 'function') {
+      try {
+        this.map.getContainer()?.classList.toggle('map-routing-mode', this.isActive);
+      } catch (_) {}
+    }
+    mapEl?.classList.toggle('map-routing-mode', this.isActive);
+
     const routingBtn = document.getElementById('btn-routing');
     routingBtn?.classList.toggle('active', this.isActive);
     routingBtn?.setAttribute('aria-expanded', String(this.isActive));
 
-    this.map.off('click', this.handleMapClick);
+    if (typeof this.map?.off === 'function') {
+      try { this.map.off('click', this.handleMapClick); } catch (_) {}
+    }
 
     if (this.isActive) {
+      this.cleanUpInteractionState();
+      this.isActive = true;
+      if (this.map && typeof this.map.getContainer === 'function') {
+        try {
+          this.map.getContainer()?.classList.add('map-routing-mode');
+        } catch (_) {}
+      }
+      mapEl?.classList.add('map-routing-mode');
+
       if (typeof PanelManager !== 'undefined') {
         PanelManager.onPanelOpened('routing');
       } else {
@@ -516,14 +539,18 @@ window.RoutingManager = {
         if (typeof GeoprocessingManager !== 'undefined' && GeoprocessingManager.isActive) GeoprocessingManager.close();
       }
       this.disableMapEditingModes();
-      this.map.on('click', this.handleMapClick);
+      if (typeof this.map?.on === 'function') {
+        try { this.map.on('click', this.handleMapClick); } catch (_) {}
+      }
       this.setStatus(typeof I18n !== 'undefined' ? I18n.t('routing.click_map_add_points') : '在地圖上依序點擊加入起點、停靠點與終點；或由上方按鈕匯入點位。');
-      window.requestAnimationFrame(() => {
-        const closeBtn = this.panel?.querySelector('.modal-close');
-        if (closeBtn && typeof closeBtn.focus === 'function') closeBtn.focus();
-      });
+      if (typeof window !== 'undefined' && typeof window.requestAnimationFrame === 'function') {
+        window.requestAnimationFrame(() => {
+          const closeBtn = this.panel?.querySelector('.modal-close');
+          if (closeBtn && typeof closeBtn.focus === 'function') closeBtn.focus();
+        });
+      }
     } else {
-      this.inputMode = 'stops';
+      this.cleanUpInteractionState();
       if (typeof PanelManager !== 'undefined') {
         PanelManager.onPanelClosed('routing', { restoreFocus });
       }
@@ -537,6 +564,44 @@ window.RoutingManager = {
   close({ restoreFocus = false } = {}) {
     if (this.isActive) {
       this.toggle(restoreFocus);
+    } else {
+      this.cleanUpInteractionState();
+    }
+  },
+
+  exitBarrierMode({ quiet = false } = {}) {
+    this.inputMode = 'stops';
+    const mapEl = document.getElementById('map');
+    mapEl?.classList.remove('map-cursor-barrier');
+    if (this.map && typeof this.map.getContainer === 'function') {
+      try {
+        this.map.getContainer()?.classList.remove('map-cursor-barrier');
+      } catch (_) {}
+    }
+    if (!quiet) {
+      this.setStatus(typeof I18n !== 'undefined' ? I18n.t('routing.barrier_mode_exited') : '已離開屏障新增模式。');
+    }
+    this.renderControls();
+  },
+
+  cleanUpInteractionState() {
+    this.exitBarrierMode({ quiet: true });
+    const mapEl = document.getElementById('map');
+    mapEl?.classList.remove('map-cursor-barrier');
+    mapEl?.classList.remove('map-routing-mode');
+    if (this.map) {
+      if (typeof this.map.getContainer === 'function') {
+        try {
+          const container = this.map.getContainer();
+          container?.classList.remove('map-cursor-barrier');
+          container?.classList.remove('map-routing-mode');
+        } catch (_) {}
+      }
+      if (typeof this.map.off === 'function' && this.handleMapClick) {
+        try {
+          this.map.off('click', this.handleMapClick);
+        } catch (_) {}
+      }
     }
   },
 
@@ -604,24 +669,27 @@ window.RoutingManager = {
 
   toggleBarrierMode() {
     if (this.isBusy) return;
-    this.inputMode = this.inputMode === 'barriers' ? 'stops' : 'barriers';
-    const mapEl = document.getElementById('map');
     if (this.inputMode === 'barriers') {
+      this.exitBarrierMode();
+    } else {
+      this.inputMode = 'barriers';
+      const mapEl = document.getElementById('map');
       mapEl?.classList.add('map-cursor-barrier');
+      if (this.map && typeof this.map.getContainer === 'function') {
+        try {
+          this.map.getContainer()?.classList.add('map-cursor-barrier');
+        } catch (_) {}
+      }
       this.setStatus(typeof I18n !== 'undefined' ? I18n.t('routing.barrier_mode_active') : '請點擊地圖任意位置新增圓形屏障；再次點擊按鈕或按 Esc 結束。', 'is-busy');
       this.toggleAccordion('barriers');
-    } else {
-      mapEl?.classList.remove('map-cursor-barrier');
-      this.setStatus(typeof I18n !== 'undefined' ? I18n.t('routing.barrier_mode_exited') : '已離開屏障新增模式。');
+      this.renderControls();
     }
-    this.renderControls();
   },
 
   addBarrier(latlng) {
     if (this.barriers.length >= this.maxBarriers) {
       window.App?.showToast(typeof I18n !== 'undefined' ? I18n.t('routing.max_barriers_reached', { max: this.maxBarriers }) : `屏障數量已達 ${this.maxBarriers} 個上限`, 'warning');
-      this.inputMode = 'stops';
-      this.renderControls();
+      this.exitBarrierMode({ quiet: true });
       return;
     }
 
@@ -2990,8 +3058,7 @@ window.RoutingManager = {
 
     this.points = [];
     this.barriers = [];
-    this.inputMode = 'stops';
-    document.getElementById('map')?.classList.remove('map-cursor-barrier');
+    this.exitBarrierMode({ quiet: true });
     this.resetComputedRoute();
     this.resetPointValidation();
     if (this.markerLayer) this.markerLayer.clearLayers();

@@ -1468,3 +1468,103 @@ test('36. i18n: Catalog empty hint and status bar labels dynamically format in a
   I18n.setLanguage('zh-TW');
 });
 
+test('37. Routing: Closing panel while in barrier mode thoroughly removes map-cursor-barrier and map-routing-mode while preserving points and barriers', () => {
+  const mapContainer = getOrCreateElement('map');
+  App.map._container = mapContainer;
+  const routingPanel = getOrCreateElement('routing-panel');
+  RoutingManager.panel = routingPanel;
+  RoutingManager.map = App.map;
+
+  // 1. Open panel and enter barrier mode with existing points and barriers
+  RoutingManager.isActive = false;
+  RoutingManager.inputMode = 'stops';
+  RoutingManager.toggle(false);
+
+  RoutingManager.points = [
+    { id: 'p1', lat: 25.01, lng: 121.51, name: '起點', role: 'start', originalIndex: 1 },
+    { id: 'p2', lat: 25.02, lng: 121.52, name: '終點', role: 'end', originalIndex: 2 }
+  ];
+  RoutingManager.barriers = [
+    { id: 'b1', lat: 25.015, lng: 121.515, radius: 100, enabled: true, name: '屏障 #1' }
+  ];
+  RoutingManager.toggleBarrierMode();
+
+  assert.strictEqual(RoutingManager.inputMode, 'barriers');
+  assert.strictEqual(mapContainer.classList.contains('map-cursor-barrier'), true, 'map-cursor-barrier present in barrier mode');
+  assert.strictEqual(mapContainer.classList.contains('map-routing-mode'), true, 'map-routing-mode present when active');
+
+  // 2. Directly close routing panel
+  RoutingManager.close({ restoreFocus: false });
+
+  // 3. Verify complete cleanup
+  assert.strictEqual(RoutingManager.isActive, false, 'Routing panel is not active');
+  assert.strictEqual(RoutingManager.inputMode, 'stops', 'inputMode reset to stops');
+  assert.strictEqual(mapContainer.classList.contains('map-cursor-barrier'), false, 'map-cursor-barrier removed on close');
+  assert.strictEqual(mapContainer.classList.contains('map-routing-mode'), false, 'map-routing-mode removed on close');
+  const addBarrierBtn = document.getElementById('btn-routing-add-barrier');
+  if (addBarrierBtn) {
+    assert.strictEqual(addBarrierBtn.classList.contains('active'), false, 'Add barrier button is inactive');
+    assert.strictEqual(addBarrierBtn.classList.contains('is-active'), false, 'Add barrier button is-active class removed');
+  }
+
+  // 4. Verify existing points and barriers preserved intact
+  assert.strictEqual(RoutingManager.points.length, 2, 'Stops are preserved');
+  assert.strictEqual(RoutingManager.barriers.length, 1, 'Barriers are preserved');
+
+  // 5. Re-open routing panel: should default to stops mode without barrier cursor residue
+  RoutingManager.toggle(false);
+  assert.strictEqual(RoutingManager.isActive, true, 'Routing panel re-opened');
+  assert.strictEqual(RoutingManager.inputMode, 'stops', 'Re-opened panel starts in stops mode');
+  assert.strictEqual(mapContainer.classList.contains('map-cursor-barrier'), false, 'Re-opened panel does not have barrier cursor');
+  assert.strictEqual(mapContainer.classList.contains('map-routing-mode'), true, 'Re-opened panel has map-routing-mode');
+
+  // Clean up
+  RoutingManager.close({ restoreFocus: false });
+});
+
+test('38. Routing: Switching directly to another tool panel or pressing Escape exits barrier mode without residual cursor', () => {
+  const mapContainer = getOrCreateElement('map');
+  App.map._container = mapContainer;
+  const routingPanel = getOrCreateElement('routing-panel');
+  RoutingManager.panel = routingPanel;
+  RoutingManager.map = App.map;
+
+  // Initialize PanelManager with routing
+  PanelManager.init();
+
+  // Open routing and enter barrier mode
+  RoutingManager.isActive = false;
+  RoutingManager.inputMode = 'stops';
+  RoutingManager.toggle(false);
+  PanelManager.activePanel = 'routing';
+  RoutingManager.toggleBarrierMode();
+
+  assert.strictEqual(RoutingManager.inputMode, 'barriers');
+  assert.strictEqual(mapContainer.classList.contains('map-cursor-barrier'), true);
+
+  // Press 1st Escape: should exit barrier mode only, panel remains open
+  let prevented = false;
+  let stopped = false;
+  PanelManager.handleEscape({
+    preventDefault: () => { prevented = true; },
+    stopPropagation: () => { stopped = true; },
+    stopImmediatePropagation: () => {}
+  });
+
+  assert.strictEqual(RoutingManager.isActive, true, 'Panel remains open after 1st Escape');
+  assert.strictEqual(RoutingManager.inputMode, 'stops', 'inputMode returned to stops after 1st Escape');
+  assert.strictEqual(mapContainer.classList.contains('map-cursor-barrier'), false, 'Cursor cleaned up after 1st Escape');
+
+  // Re-enter barrier mode
+  RoutingManager.toggleBarrierMode();
+  assert.strictEqual(RoutingManager.inputMode, 'barriers');
+  assert.strictEqual(mapContainer.classList.contains('map-cursor-barrier'), true);
+
+  // Directly close via PanelManager (simulating opening another panel or catalog)
+  PanelManager.close('routing', { restoreFocus: false });
+  assert.strictEqual(RoutingManager.isActive, false);
+  assert.strictEqual(RoutingManager.inputMode, 'stops');
+  assert.strictEqual(mapContainer.classList.contains('map-cursor-barrier'), false);
+  assert.strictEqual(mapContainer.classList.contains('map-routing-mode'), false);
+});
+

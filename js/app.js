@@ -226,6 +226,7 @@ const PanelManager = {
       RoutingManager.toggleBarrierMode();
       event?.preventDefault?.();
       event?.stopPropagation?.();
+      event?.stopImmediatePropagation?.();
       return;
     }
 
