@@ -829,6 +829,10 @@
       <button class="modal-close" onclick="RoutingManager.toggle()" aria-label="關閉路網分析" data-i18n-aria="routing.close_title">&times;</button>
     </div>
     <div id="routing-status" class="routing-status" data-i18n="routing.status_default">在地圖上依序加入起點、停靠點與終點。</div>
+    <div id="routing-progress" class="routing-progress" hidden>
+      <div id="routing-progress-label" role="status" aria-live="polite"></div>
+      <progress id="routing-progress-bar" max="100" aria-label="目前階段進度"></progress>
+    </div>
 
     <div class="routing-accordion">
       <!-- Section 1: 點位清單 (Stops) -->
@@ -912,7 +916,7 @@
           </div>
           <p class="routing-barrier-note">
             <i data-lucide="info" style="width: 12px; height: 12px; flex: 0 0 auto;"></i>
-            <span data-i18n="routing.barrier_note">屏障採用 Turf 真實圓形多邊形幾何相交檢驗。若衝突可嘗試避障繞行。</span>
+            <span data-i18n="routing.barrier_note">屏障以回傳路線幾何檢查衝突；繞行是前端候選搜尋，並非 OSRM 原生道路封閉。找不到無衝突路線時保留原線並禁止保存。</span>
           </p>
           <div id="routing-barrier-detour-container" style="padding: 0 10px 8px;" hidden>
             <button id="btn-routing-detour" class="btn btn-warning btn-xs" style="width: 100%; justify-content: center;" type="button" onclick="RoutingManager.replanWithDetour()">

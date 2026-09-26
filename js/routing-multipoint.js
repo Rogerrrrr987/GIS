@@ -46,6 +46,7 @@ window.RoutingManager = {
   requestRetries: 2,
   operationController: null,
   activeOperation: '',
+  operationProgress: null,
   consentResolver: null,
   activeAccordion: 'stops',
   pointMarkers: new Map(),
@@ -260,14 +261,15 @@ window.RoutingManager = {
   },
 
   // Fail-Closed OSRM Consent with Full-Origin Key (protocol, host, port, pathname)
-  async ensureOsrmConsent(pointCount) {
+  async ensureOsrmConsent(pointCount, signal = this.operationController?.signal) {
+    this.throwIfCancelled(signal);
     const serviceKey = this.getServiceOriginKey(this.osrmBaseUrl);
     let consentedHosts = [];
     try {
       consentedHosts = JSON.parse(localStorage.getItem(this.consentedHostsKey) || '[]');
     } catch (_) {}
 
-    if (consentedHosts.includes(serviceKey)) {
+    if (Array.isArray(consentedHosts) && consentedHosts.includes(serviceKey)) {
       return true;
     }
 
@@ -289,7 +291,14 @@ window.RoutingManager = {
     if (window.lucide) window.lucide.createIcons();
 
     return new Promise((resolve, reject) => {
-      this.consentResolver = { resolve, reject, serviceKey };
+      const onAbort = () => this.rejectOsrmConsent();
+      const settle = (callback) => (value) => {
+        signal?.removeEventListener('abort', onAbort);
+        callback(value);
+      };
+      this.consentResolver = { resolve: settle(resolve), reject: settle(reject), serviceKey };
+      signal?.addEventListener('abort', onAbort, { once: true });
+      if (signal?.aborted) onAbort();
     });
   },
 
@@ -335,6 +344,8 @@ window.RoutingManager = {
     this.operationController = new AbortController();
     this.activeOperation = name;
     this.isBusy = true;
+    this.operationProgress = { phase: '準備／等待授權', completed: 0, total: 0, requests: 0 };
+    this.renderOperationProgress();
     this.renderControls();
     return this.operationController.signal;
   },
@@ -343,6 +354,7 @@ window.RoutingManager = {
     this.operationController = null;
     this.activeOperation = '';
     this.isBusy = false;
+    this.renderOperationProgress();
     this.renderControls();
   },
 
@@ -351,6 +363,39 @@ window.RoutingManager = {
     this.operationController.abort();
     this.setStatus('正在取消計算作業…', 'is-busy');
     window.App?.showToast('已請求取消計算', 'info');
+  },
+
+  throwIfCancelled(signal) {
+    if (signal?.aborted) throw new DOMException('使用者已取消作業', 'AbortError');
+  },
+
+  updateOperationProgress(phase, completed = 0, total = 0) {
+    if (!this.operationProgress) return;
+    Object.assign(this.operationProgress, { phase, completed, total });
+    this.renderOperationProgress();
+  },
+
+  renderOperationProgress() {
+    const container = document.getElementById('routing-progress');
+    const label = document.getElementById('routing-progress-label');
+    const bar = document.getElementById('routing-progress-bar');
+    if (!container || !label || !bar) return;
+    const p = this.operationProgress;
+    container.hidden = !p;
+    if (!p) return;
+    const percent = p.total ? Math.floor(p.completed / p.total * 100) : null;
+    label.textContent = `${p.phase}${percent === null ? '' : `：${p.completed} / ${p.total}（${percent}%）`} · OSRM 請求 ${p.requests} 次（含重試）${this.isBusy ? '' : ' · 作業已結束'}`;
+    if (percent === null) bar.removeAttribute('value');
+    else bar.value = percent;
+    bar.hidden = !this.isBusy;
+  },
+
+  // Service responses may echo coordinate URLs. Do not expose them in logs or UI.
+  safeServiceError(error) {
+    return String(error?.message || error || '服務回應異常')
+      .replace(/https?:\/\/[^\s<>"']+/gi, '[服務網址已隱藏]')
+      .replace(/-?\d{1,3}(?:\.\d+)?\s*,\s*-?\d{1,3}(?:\.\d+)?/g, '[座標已隱藏]')
+      .slice(0, 300);
   },
 
   isAbortError(error) {
@@ -391,6 +436,10 @@ window.RoutingManager = {
       }, this.requestTimeoutMs);
 
       try {
+        if (this.operationProgress) {
+          this.operationProgress.requests++;
+          this.renderOperationProgress();
+        }
         const response = await fetch(url, {
           headers: { Accept: 'application/json' },
           signal: controller.signal,
@@ -405,10 +454,15 @@ window.RoutingManager = {
             let delayMs = 500 * Math.pow(2, attempt);
             const retryAfter = response.headers.get('Retry-After');
             if (retryAfter) {
-              const parsedSec = parseInt(retryAfter, 10);
-              if (!isNaN(parsedSec) && parsedSec > 0) {
-                delayMs = Math.min(parsedSec * 1000, 5000);
-              }
+              const seconds = Number(retryAfter);
+              const requestedDelay = Number.isFinite(seconds) ? seconds * 1000 : Date.parse(retryAfter) - Date.now();
+              if (Number.isFinite(requestedDelay)) delayMs = Math.max(delayMs, requestedDelay);
+            }
+            // Never retry sooner than the server asks. Long waits require a later manual retry.
+            if (delayMs > 30000) {
+              const error = new Error(`${label} HTTP ${status}：服務要求等待 ${Math.ceil(delayMs / 1000)} 秒，請稍後重試。`);
+              error.noRetry = true;
+              throw error;
             }
             this.setStatus(`${label}：遇到 HTTP ${status}，正在重試第 ${attempt + 1} 次（等待 ${Math.round(delayMs)}ms）…`, 'is-busy');
             await this.abortableSleep(delayMs, parentSignal);
@@ -426,12 +480,15 @@ window.RoutingManager = {
           throw err;
         }
 
-        return await response.json();
+        const data = await response.json();
+        this.throwIfCancelled(parentSignal);
+        return data;
       } catch (error) {
         if (parentSignal?.aborted) throw new DOMException('使用者已取消作業', 'AbortError');
+        if (error.noRetry) throw error;
         if (error.status && [400, 401, 403, 404].includes(error.status)) throw error;
 
-        if (attempt < maxRetries && !this.isAbortError(error)) {
+        if (attempt < maxRetries && (timedOut || !this.isAbortError(error))) {
           const delayMs = 500 * Math.pow(2, attempt);
           this.setStatus(`${label}：連線或逾時異常，正在重試第 ${attempt + 1} 次…`, 'is-busy');
           await this.abortableSleep(delayMs, parentSignal);
@@ -440,7 +497,7 @@ window.RoutingManager = {
 
         if (timedOut) throw new Error(`${label} 請求逾時（超過 ${this.requestTimeoutMs / 1000} 秒未回應）`);
         if (error instanceof TypeError && !navigator.onLine) throw new Error('網路連線已中斷，無法連接 OSRM 服務。');
-        throw error;
+        throw new Error(this.safeServiceError(error));
       } finally {
         window.clearTimeout(timeout);
         parentSignal?.removeEventListener('abort', onParentAbort);
@@ -473,6 +530,7 @@ window.RoutingManager = {
         this.setServiceStatus('測試已取消', 'is-unknown');
         this.setStatus('已取消服務測試。');
       } else {
+        error = new Error(this.safeServiceError(error));
         this.setServiceStatus(`測試失敗：${error.message}`, 'is-error');
         this.setStatus(`OSRM 測試失敗：${error.message}`, 'is-error');
         window.App?.showToast(`OSRM 測試失敗：${error.message}`, 'error');
@@ -1538,6 +1596,7 @@ window.RoutingManager = {
 
   async fetchPointValidation(signal) {
     const results = new Map();
+    this.updateOperationProgress('道路吸附檢查', 0, this.points.length);
     for (let i = 0; i < this.points.length; i++) {
       if (signal?.aborted) throw new DOMException('作業已取消', 'AbortError');
       const point = this.points[i];
@@ -1569,6 +1628,7 @@ window.RoutingManager = {
         results.set(point.id, { status: 'unreachable', snapDistance: Infinity, error: err.message });
       }
 
+      this.updateOperationProgress('道路吸附檢查', i + 1, this.points.length);
       await new Promise(r => setTimeout(r, 0));
     }
     return results;
@@ -1670,12 +1730,14 @@ window.RoutingManager = {
       this.setStatus(`正在分段向 OSRM 請求道路路線（共 ${ordered.length} 點）…`, 'is-busy');
 
       const route = await this.fetchOsrmRouteChunked(ordered, signal, 'current-order');
+      this.throwIfCancelled(signal);
       this.setServiceStatus(`連線正常 · ${this.getTransportLabel(this.osrmProfile)}`, 'is-ok');
 
       this.clearFallbackPreview();
       this.showRoute(route);
       this.showResult(route);
       this.toggleAccordion('results');
+      this.setStatus(route.barrierConflicts.length ? '路線已計算，但仍有屏障衝突，禁止保存。' : '道路路線計算完成。', route.barrierConflicts.length ? 'is-error' : 'is-ok');
 
       if (route.barrierConflicts.length > 0) {
         window.App?.showToast(`路線與 ${route.barrierConflicts.length} 個屏障衝突，禁止保存`, 'error');
@@ -1712,7 +1774,9 @@ window.RoutingManager = {
           this.applyPointValidation(await this.fetchPointValidation(signal));
           validation = this.getValidationSummary();
           this.renderValidationSummary(validation);
-        } catch (_) {}
+        } catch (error) {
+          if (this.isAbortError(error)) throw error;
+        }
       }
 
       if (validation && (validation.unreachable + validation.far > 0)) {
@@ -1722,6 +1786,8 @@ window.RoutingManager = {
       }
 
       const useLocalTsp = this.points.length > this.maxTripPoints || this.lockStartEnd;
+      this.throwIfCancelled(signal);
+      this.updateOperationProgress(useLocalTsp ? '本機順序最佳化（非全域最佳保證）' : 'OSRM Trip 最佳化');
       this.setStatus(useLocalTsp ? '正在執行非同步 2-Opt 最佳化順序…' : '正在向 OSRM Trip 請求最佳順序…', 'is-busy');
 
       let route = null;
@@ -1733,11 +1799,13 @@ window.RoutingManager = {
         route = await this.fetchOsrmRouteChunked(optimizedOrder, signal, 'local-2opt');
       }
 
+      this.throwIfCancelled(signal);
       this.setServiceStatus(`連線正常 · ${this.getTransportLabel(this.osrmProfile)}`, 'is-ok');
       this.clearFallbackPreview();
       this.showRoute(route);
       this.showResult(route);
       this.toggleAccordion('results');
+      this.setStatus(route.barrierConflicts.length ? '路線已計算，但仍有屏障衝突，禁止保存。' : '最佳化道路路線計算完成。', route.barrierConflicts.length ? 'is-error' : 'is-ok');
 
       if (route.barrierConflicts.length > 0) {
         window.App?.showToast(`路線與 ${route.barrierConflicts.length} 個屏障衝突，禁止保存`, 'error');
@@ -1754,11 +1822,15 @@ window.RoutingManager = {
 
   // Error handler: isolated fallback preview without overwriting currentRoute/routeLayer
   handleRouteError(error) {
-    if (this.isAbortError(error)) {
+    const cancelled = this.isAbortError(error);
+    error = new Error(this.safeServiceError(error));
+    if (!cancelled) this.updateOperationProgress('失敗，保留上次結果');
+    if (cancelled) {
+      this.updateOperationProgress('已取消');
       this.setStatus('已取消計算作業。已保留上次有效狀態。');
       window.App?.showToast('已取消路網計算', 'info');
     } else if (this.fallbackPolicy === 'preview') {
-      console.warn('道路服務計算失敗，依照設定顯示獨立直線預覽。', error);
+      console.warn('道路服務計算失敗，依照設定顯示獨立直線預覽。', error.message);
       if (this.currentRoute) {
         this.showResult(this.currentRoute);
       }
@@ -1927,6 +1999,7 @@ window.RoutingManager = {
       if (signal?.aborted) throw new DOMException('作業已取消', 'AbortError');
       improved = false;
       pass++;
+      this.updateOperationProgress(`本機 2-Opt 第 ${pass} 輪（最多 ${maxPasses} 輪）`);
 
       for (let i = 1; i < endLimit; i++) {
         for (let j = i + 1; j < (fixedEnd ? n - 1 : n); j++) {
@@ -1974,6 +2047,7 @@ window.RoutingManager = {
     const url = `${this.osrmBaseUrl}/trip/v1/${this.osrmProfile}/${coordinates}?roundtrip=${roundtripParam}&source=${sourceParam}&destination=${destinationParam}&geometries=geojson&overview=full&steps=false`;
 
     const data = await this.requestJson(url, { label: 'OSRM Trip 最佳化', signal });
+    this.throwIfCancelled(signal);
     if (data.code !== 'Ok' || !data.trips || !data.trips[0]) {
       throw new Error(data.message || data.code || 'OSRM 未回傳可用路網路徑');
     }
@@ -1999,6 +2073,7 @@ window.RoutingManager = {
       osrmService: this.osrmBaseUrl,
       optimizationMethod: 'OSRM Trip 服務',
       approximate: false,
+      warnings: this.getRouteWarnings(data, inputOrder),
       computedAt: new Date().toISOString()
     };
   },
@@ -2012,10 +2087,12 @@ window.RoutingManager = {
 
     const latlngs = [];
     const allLegs = [];
+    const warnings = new Set();
     let distance = 0;
     let duration = 0;
     const totalChunks = Math.ceil((fullSequence.length - 1) / (this.routeChunkSize - 1));
     let chunkIndex = 0;
+    this.updateOperationProgress('道路路線分段', 0, totalChunks);
 
     for (let offset = 0; offset < fullSequence.length - 1; offset += (this.routeChunkSize - 1)) {
       if (signal?.aborted) throw new DOMException('作業已取消', 'AbortError');
@@ -2030,14 +2107,17 @@ window.RoutingManager = {
       try {
         data = await this.requestJson(url, { label: `OSRM Route 分段 ${chunkIndex}/${totalChunks}`, signal });
       } catch (err) {
-        throw new Error(`第 ${chunkIndex}/${totalChunks} 分段請求失敗：${err.message}`);
+        if (this.isAbortError(err)) throw err;
+        throw new Error(`第 ${chunkIndex}/${totalChunks} 分段請求失敗：${this.safeServiceError(err)}`);
       }
+      this.throwIfCancelled(signal);
 
       if (data.code !== 'Ok' || !data.routes?.[0]) {
         throw new Error(data.message || data.code || `第 ${chunkIndex}/${totalChunks} 分段未回傳可用路徑`);
       }
 
       const route = data.routes[0];
+      this.getRouteWarnings(data, chunk).forEach(warning => warnings.add(warning));
       const chunkCoords = route.geometry.coordinates.map(([lng, lat]) => [lat, lng]);
 
       if (latlngs.length > 0 && chunkCoords.length > 0) {
@@ -2051,10 +2131,12 @@ window.RoutingManager = {
 
       distance += Number(route.distance) || 0;
       duration += Number(route.duration) || 0;
+      this.updateOperationProgress('道路路線分段', chunkIndex, totalChunks);
 
       await new Promise(r => setTimeout(r, 0));
     }
 
+    this.throwIfCancelled(signal);
     this.applyOptimizedIndices(routeSequence);
 
     return {
@@ -2068,8 +2150,20 @@ window.RoutingManager = {
       osrmService: this.osrmBaseUrl,
       optimizationMethod: methodLabel === 'current-order' ? '依目前清單順序' : '本機 2-Opt 最佳化',
       approximate: false,
+      warnings: [...warnings],
       computedAt: new Date().toISOString()
     };
+  },
+
+  getRouteWarnings(data, points) {
+    const warnings = [];
+    if (data.message) warnings.push(`服務訊息：${this.safeServiceError(data.message)}`);
+    (data.waypoints || []).forEach((wp, i) => {
+      if (!wp || Number(wp.distance) >= this.snapWarningDistance) {
+        warnings.push(`${points[i]?.name || `點位 ${i + 1}`}：${!wp ? '道路吸附失敗' : `道路吸附偏移 ${Math.round(wp.distance)} 公尺，請確認位置`}`);
+      }
+    });
+    return warnings;
   },
 
   applyOptimizedIndices(orderedPoints) {
@@ -2335,11 +2429,13 @@ window.RoutingManager = {
       }
 
       if (bestCleanRoute) {
+        this.throwIfCancelled(signal);
         const finalConflicts = this.evaluateBarrierConflicts(bestCleanRoute.latlngs);
         if (finalConflicts.length === 0) {
           this.clearFallbackPreview();
           this.showRoute(bestCleanRoute);
           this.showResult(bestCleanRoute);
+          this.setStatus('已找到未穿越目前啟用屏障的候選繞行路線；非道路封閉保證。', 'is-ok');
           window.App?.showToast('成功尋得屏障避障繞行路線！', 'success');
           return;
         }
@@ -2410,7 +2506,7 @@ window.RoutingManager = {
     if (this.routeIsOutdated) {
       const b = document.createElement('span');
       b.className = 'routing-outdated-badge';
-      b.textContent = '已過期 (上次有效結果)';
+      b.textContent = '需要重新計算（上次結果）';
       titleRow.appendChild(b);
     } else if (hasConflict) {
       const b = document.createElement('span');
@@ -2434,6 +2530,16 @@ window.RoutingManager = {
     r4.innerHTML = `<strong>計算時間：</strong>${new Date(route.computedAt || Date.now()).toLocaleTimeString('zh-TW')}`;
     metrics.append(r1, r2, r3, r4);
     card.appendChild(metrics);
+    const quality = document.createElement('div');
+    quality.className = 'routing-quality-note';
+    quality.textContent = `屏障檢查：${this.routeIsOutdated ? '條件已變更，需重新計算後檢查' : (hasConflict ? '發現衝突，禁止保存' : '未發現穿越目前啟用的屏障')}。僅檢查回傳幾何，不代表實際道路封閉或通行保證。`;
+    card.appendChild(quality);
+    for (const warning of route.warnings || []) {
+      const item = document.createElement('div');
+      item.className = 'routing-quality-note';
+      item.textContent = warning;
+      card.appendChild(item);
+    }
 
     const seqRow = document.createElement('div');
     seqRow.style.marginTop = '6px';
@@ -2564,6 +2670,8 @@ window.RoutingManager = {
       barrier_count: this.barriers.filter(b => b.enabled !== false).length,
       barrier_checked: true,
       barrier_conflicts: 0,
+      barrier_check_method: 'client_geometry_intersection',
+      service_warnings: (route.warnings || []).join('；'),
       computed_at: route.computedAt || new Date().toISOString(),
       style: {
         color: '#2563eb',

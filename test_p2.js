@@ -434,6 +434,212 @@ test('Suite 1: Syntax check of all JavaScript files in js/', () => {
   });
 });
 
+// Routing reliability: deterministic service doubles only; no external requests.
+function routePoints(count) {
+  return Array.from({ length: count }, (_, i) => ({
+    id: `reliable-${i}`, name: `Point ${i + 1}`, lat: 24 + i * 0.0001, lng: 121 + i * 0.0001,
+    role: i === 0 ? 'start' : i === count - 1 ? 'end' : 'stop'
+  }));
+}
+
+function routeResponse(url) {
+  const coords = url.split('?')[0].split('/').pop().split(';').map(p => p.split(',').map(Number));
+  return { ok: true, json: async () => ({ code: 'Ok', routes: [{
+    geometry: { coordinates: coords }, distance: (coords.length - 1) * 100,
+    duration: (coords.length - 1) * 10, legs: coords.slice(1).map(() => ({ distance: 100, duration: 10 }))
+  }] }) };
+}
+
+for (const count of [2, 20, 90, 91, 200]) {
+  for (const mode of ['open', 'roundtrip']) {
+    test(`Reliability: ${count} points / ${mode}: geometry, progress, request count`, async () => {
+      setupEnvironment();
+      const rm = window.RoutingManager;
+      rm.getMode = () => mode;
+      rm.points = routePoints(count);
+      let calls = 0;
+      global.fetch = async url => { calls++; return routeResponse(url); };
+      const signal = rm.beginOperation('test-chunks');
+      const result = await rm.fetchOsrmRouteChunked(rm.points, signal, 'current-order');
+      const legs = count - (mode === 'open' ? 1 : 0);
+      assert.equal(result.legs.length, legs);
+      assert.equal(result.latlngs.length, legs + 1);
+      assert.equal(result.distance, legs * 100);
+      assert.equal(calls, Math.ceil(legs / 49));
+      assert.equal(rm.operationProgress.requests, calls);
+      assert.equal(rm.operationProgress.completed, rm.operationProgress.total);
+      rm.finishOperation();
+    });
+  }
+}
+
+test('Reliability: pending consent cancellation settles without fetch or stale approval', async () => {
+  const { doc } = setupEnvironment();
+  const rm = window.RoutingManager;
+  let calls = 0;
+  global.fetch = async () => { calls++; throw Error('Unexpected network'); };
+  const signal = rm.beginOperation('consent');
+  const pending = rm.ensureOsrmConsent(200, signal);
+  rm.cancelOperation();
+  await assert.rejects(pending, { name: 'AbortError' });
+  assert.equal(rm.consentResolver, null);
+  assert.equal(doc.getElementById('routing-consent-modal').classList.contains('active'), false);
+  rm.approveOsrmConsent();
+  assert.equal(calls, 0);
+  rm.finishOperation();
+});
+
+test('Reliability: changing OSRM service requires fresh consent', async () => {
+  const { storage } = setupEnvironment();
+  const rm = window.RoutingManager;
+  storage.set(rm.consentedHostsKey, JSON.stringify([rm.getServiceOriginKey()]));
+  assert.equal(await rm.ensureOsrmConsent(2), true);
+  rm.osrmBaseUrl = 'https://example.invalid/other-service';
+  const pending = rm.ensureOsrmConsent(2);
+  assert.ok(rm.consentResolver);
+  rm.rejectOsrmConsent();
+  await assert.rejects(pending, { name: 'AbortError' });
+});
+
+test('Reliability: active fetch abort preserves previous route and prevents duplicate submission', async () => {
+  setupEnvironment();
+  const rm = window.RoutingManager;
+  rm.points = routePoints(2);
+  rm.ensureOsrmConsent = async () => true;
+  const previous = { latlngs: [[24, 121], [24.1, 121.1]], orderedPoints: routePoints(2),
+    distance: 100, duration: 10, barrierConflicts: [], mode: 'open' };
+  rm.currentRoute = previous;
+  let calls = 0;
+  let notifyStarted;
+  const started = new Promise(resolve => { notifyStarted = resolve; });
+  global.fetch = (url, { signal }) => new Promise((resolve, reject) => {
+    calls++;
+    signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')), { once: true });
+    notifyStarted();
+  });
+  const pending = rm.calculateCurrentOrder();
+  await started;
+  await rm.calculateCurrentOrder();
+  rm.cancelOperation();
+  await pending;
+  assert.equal(calls, 1);
+  assert.equal(rm.currentRoute, previous);
+  assert.equal(rm.isBusy, false);
+  assert.equal(rm.operationProgress.phase, '已取消');
+});
+
+test('Reliability: cancellation after final response cannot publish a new route', async () => {
+  setupEnvironment();
+  const rm = window.RoutingManager;
+  rm.points = routePoints(2);
+  const controller = new AbortController();
+  global.fetch = async url => {
+    const response = routeResponse(url);
+    const body = await response.json();
+    return { ok: true, json: async () => { controller.abort(); return body; } };
+  };
+  await assert.rejects(rm.fetchOsrmRouteChunked(rm.points, controller.signal, 'current-order'), { name: 'AbortError' });
+  assert.equal(rm.currentRoute, null);
+  assert.equal(rm.points[0].optimizedIndex, undefined);
+});
+
+test('Reliability: timeout retries are bounded; errors hide coordinate URLs', async () => {
+  setupEnvironment();
+  const rm = window.RoutingManager;
+  rm.requestTimeoutMs = 5;
+  rm.abortableSleep = async () => {};
+  let calls = 0;
+  global.fetch = (url, { signal }) => new Promise((resolve, reject) => {
+    calls++;
+    signal.addEventListener('abort', () => reject(new DOMException('timeout', 'AbortError')), { once: true });
+  });
+  await assert.rejects(rm.requestJson('https://example.invalid/route', { retries: 2 }), /逾時/);
+  assert.equal(calls, 3);
+  global.fetch = async () => { throw new TypeError('Failed https://example.invalid/route/121.55,24.12?secret=xyz'); };
+  await assert.rejects(rm.requestJson('https://example.invalid', { retries: 0 }), error => {
+    assert.doesNotMatch(error.message, /121\.55|secret=xyz|https:\/\//);
+    return true;
+  });
+});
+
+test('Reliability: 429 honors long Retry-After without premature requests', async () => {
+  setupEnvironment();
+  const rm = window.RoutingManager;
+  let calls = 0;
+  global.fetch = async () => { calls++; return { ok: false, status: 429, headers: new Map([['Retry-After', '120']]) }; };
+  await assert.rejects(rm.requestJson('https://example.invalid'), /等待 120 秒/);
+  assert.equal(calls, 1);
+});
+
+for (const status of [400, 502, 503]) {
+  test(`Reliability: HTTP ${status} bounded retry policy`, async () => {
+    setupEnvironment();
+    const rm = window.RoutingManager;
+    rm.abortableSleep = async () => {};
+    let calls = 0;
+    global.fetch = async () => { calls++; return { ok: false, status, headers: new Map() }; };
+    await assert.rejects(rm.requestJson('https://example.invalid'), new RegExp(`HTTP ${status}`));
+    assert.equal(calls, status === 400 ? 1 : 3);
+  });
+}
+
+test('Reliability: route warnings retain snap quality without coordinate URLs', () => {
+  setupEnvironment();
+  const rm = window.RoutingManager;
+  const warnings = rm.getRouteWarnings({
+    message: 'see https://example.invalid/121.55,24.12', waypoints: [null, { distance: 250 }]
+  }, routePoints(2));
+  assert.equal(warnings.length, 3);
+  assert.match(warnings[1], /吸附失敗/);
+  assert.match(warnings[2], /250 公尺/);
+  assert.doesNotMatch(warnings.join(' '), /121\.55/);
+});
+
+test('Reliability: offline failures are actionable and never become saved routes', async () => {
+  setupEnvironment();
+  const rm = window.RoutingManager;
+  const originalNavigator = Object.getOwnPropertyDescriptor(global, 'navigator');
+  Object.defineProperty(global, 'navigator', { value: { onLine: false }, configurable: true });
+  global.fetch = async () => { throw new TypeError('Failed to fetch'); };
+  try {
+    await assert.rejects(rm.requestJson('https://example.invalid', { retries: 0 }), /網路連線已中斷/);
+    assert.equal(rm.currentRoute, null);
+  } finally {
+    if (originalNavigator) Object.defineProperty(global, 'navigator', originalNavigator);
+    else delete global.navigator;
+  }
+});
+
+test('Reliability: cancelling during Retry-After prevents subsequent fetches', async () => {
+  setupEnvironment();
+  const rm = window.RoutingManager;
+  const signal = rm.beginOperation('retry');
+  let calls = 0;
+  let waiting;
+  const ready = new Promise(resolve => { waiting = resolve; });
+  const sleep = rm.abortableSleep.bind(rm);
+  rm.abortableSleep = (ms, s) => { waiting(); return sleep(ms, s); };
+  global.fetch = async () => { calls++; return { ok: false, status: 429, headers: new Map([['Retry-After', '2']]) }; };
+  const request = rm.requestJson('https://example.invalid', { signal });
+  await ready;
+  rm.cancelOperation();
+  await assert.rejects(request, { name: 'AbortError' });
+  assert.equal(calls, 1);
+  rm.finishOperation();
+});
+
+test('Reliability: 200-point local optimization yields and observes cancellation', async () => {
+  setupEnvironment();
+  const rm = window.RoutingManager;
+  const points = routePoints(200);
+  const controller = new AbortController();
+  let ticked = false;
+  const pending = rm.asyncTwoOpt(points, controller.signal, true);
+  setTimeout(() => { ticked = true; controller.abort(); }, 0);
+  await assert.rejects(pending, { name: 'AbortError' });
+  assert.equal(ticked, true, 'browser/event loop must remain responsive');
+});
+
 test('Suite 2: Point file extraction and auto-role assignment (extractRoutePoints)', () => {
   const { doc } = setupEnvironment();
   const rm = window.RoutingManager;
