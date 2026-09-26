@@ -53,11 +53,13 @@ const CatalogManager = {
     this.syncVisibilityState();
     if (isOpen) {
       window.requestAnimationFrame(() => {
+        if (this.panel.classList.contains('is-hidden')) return;
         const closeBtn = document.getElementById('btn-close-catalog');
-        if (closeBtn && typeof closeBtn.focus === 'function') closeBtn.focus();
+        // The drawer may still be sliding in; focus must not scroll the map workspace.
+        if (closeBtn && typeof closeBtn.focus === 'function') closeBtn.focus({ preventScroll: true });
       });
     } else if (restoreFocus && wasOpen) {
-      try { document.getElementById('btn-toggle-catalog')?.focus(); } catch (_) {}
+      try { document.getElementById('btn-toggle-catalog')?.focus({ preventScroll: true }); } catch (_) {}
     }
   },
 
