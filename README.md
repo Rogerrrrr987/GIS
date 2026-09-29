@@ -6,7 +6,7 @@
 
 ## 🚀 快速啟動
 
-### 方法一：Windows 一鍵啟動（推薦，不需安裝 Python）
+### 方法一：Windows 一鍵啟動
 下載或複製專案後，在專案目錄直接雙擊執行：
 - **`run_gis.bat`**
 
@@ -21,23 +21,11 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\run_gis.ps1
 
 > 注意：工具仍會從網路載入 Leaflet 等前端函式庫與底圖；請使用上述本機服務啟動，不建議直接雙擊 `index.html`。
 
-### 執行自動化測試（選用）
 
-若電腦已安裝 Node.js，可直接雙擊 `run_tests.bat`，或在專案目錄執行：
-
-```powershell
-.\run_tests.ps1
-```
-
-以上方式只執行本機 mock 測試，不會向 OSRM 或 TGOS 傳送資料。
-
-面試展示重點與建議流程請參閱 [`PORTFOLIO.md`](PORTFOLIO.md)。
-
----
 
 ## 🌟 核心功能說明
 
-### 0. 專案安全與工作復原
+### 1. 專案安全與工作復原
 - 頂部「**專案**」選單可將完整工作狀態另存為 `.gcp.json`，或重新開啟既有專案。
 - 工作內容變更後會自動備份於目前瀏覽器；下次啟動時可選擇復原或捨棄。
 - 支援最多 60 個操作歷程的全域復原／重做（`Ctrl+Z`、`Ctrl+Y`，`Ctrl+S` 另存專案）。
@@ -45,7 +33,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\run_gis.ps1
 - 備份包含圖元、樣式、地圖視角、底圖、路網停靠點與屏障；計算中的路線需重新計算。
 - TGOS APIKey 不會寫入瀏覽器工作備份或專案檔。
 
-### 1. 空間幾何繪製與編輯（左側工具列）
+### 2. 空間幾何繪製與編輯（左側工具列）
 - **點 (Marker)**：標註特定經緯度位置。
 - **線 (Polyline)**：繪製路徑、管線、路線，自動即時計算長度（公尺/公里）。
 - **多邊形 (Polygon)**：繪製任意區域範圍，自動計算面積（平方公尺、平方公里、公頃、坪）與周長。
@@ -56,7 +44,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\run_gis.ps1
   - **拖曳 (Drag)** 與 **旋轉 (Rotate)**：平移或旋轉形狀。
   - **顏色與樣式調整**：即時自訂線框顏色、填充顏色、線寬與透明度。
 
-### 2. 圖資讀取 (Import)
+### 3. 圖資讀取 (Import)
 點擊頂部「**匯入圖資**」按鈕，或**直接將檔案拖曳到地圖上**：
 - **KML / KMZ**（`.kml`, `.kmz`）：支援 Google Earth Placemark 點、線、多邊形、顏色樣式與 ExtendedData 擴充屬性。
 - **Shapefile**（`.zip`）：請將包含 `.shp`, `.shx`, `.dbf`, `.prj` 的檔案壓成 ZIP 檔直接上傳。
@@ -66,14 +54,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\run_gis.ps1
   - 其餘欄位自動保留為圖元屬性表。
 - **GeoJSON**（`.geojson`, `.json`）：標準 GIS 向量格式。
 
-### 3. 圖資輸出 (Export)
+### 4. 圖資輸出 (Export)
 點擊頂部「**匯出圖資**」下拉選單：
 - **KML**：匯出符合 OGC KML 2.2 標準的檔案，包含幾何坐標、自訂樣式顏色與 ExtendedData 屬性。
 - **Shapefile (ZIP)**：一鍵封裝 `.shp`、`.shx`、`.dbf`、`.prj` (WGS84 EPSG:4326) 壓縮包。
 - **CSV (WKT + 經緯度)**：匯出包含 WKT（全幾何支援）、經緯度座標及所有自訂屬性之 CSV 檔，加入 UTF-8 BOM 確保 Microsoft Excel 開啟中文不會亂碼。
 - **GeoJSON**：標準結構化空間資料。
 
-### 4. 圖層屬性資料表 (Attribute Table)
+### 5. 圖層屬性資料表 (Attribute Table)
 點擊「**屬性資料表**」可由底部開啟資料表抽屜：
 - 表格化檢視目前所有圖元的名稱、幾何類型、度量數據與自訂欄位。
 - 支援快速關鍵字搜尋與過濾。
@@ -81,7 +69,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\run_gis.ps1
 - **動態新增欄位**：可一鍵為所有圖元擴充全新自訂欄位。
 - **即時編輯**：點選任一儲存格即可直接修改數值。
 
-### 5. 多底圖與圖層切換（原生支援內政部國土測繪中心 WMTS）
+### 6. 多底圖與圖層切換（原生支援內政部國土測繪中心 WMTS）
 本工具已正式接入 **內政部國土測繪中心 WMTS 圖磚服務**（`http://maps.nlsc.gov.tw/S_Maps/wmts`）：
 - 🇹🇼 **臺灣通用圖 (NLSC EMAP)**：【預設底圖】台灣官方高精度彩色電子地圖，含完整道路、水系、聚落與地名。
 - 📷 **國土航照 (NLSC PHOTO2)**：台灣全島高清晰正射影像空照圖。
@@ -92,7 +80,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\run_gis.ps1
 - 📌 **疊加地籍圖 (NLSC LAND_OPENDATA)**：可隨時一鍵開關透明地籍圖疊加，縮放至第 14 級以上即可檢視真實地號與地籍界線。
 - ⚙️ **自訂 WMTS 對話盒**：可即時檢視產生之 WMTS GetTile URL 樣板，並可自由切換預設圖層或套用任何外部 WMTS 圖磚服務。
 
-### 6. 多點路網分析核心能力與安全機制
+### 7. 多點路網分析核心能力與安全機制
 - **200 點極致效能與 Keyed DOM 更新**：清單渲染採用基於 `point.id` 之 Keyed DOM 補丁機制，原地更新屬性與順序，即使 200 點拖曳排序亦順暢不閃爍；超過 90 點使用本機非阻塞式 2-Opt TSP 最佳化與分段 OSRM 請求合併。
 - **自動起終點指定與角色推斷**：匯入未指定角色之點位時，開放模式自動將首點設為起點、末點設為終點、其餘設為停靠點；環狀模式首點設起點、其餘停靠；單點僅設起點。
 - **雙向角色衝突解決機制**：替換（Replace）與追加（Append）匯入均支援「保留首項 (keep-first)」與「保留末項 (keep-last)」全域策略，預覽階段嚴格保持原資料不可變（Immutable），確認後才套用。
@@ -103,7 +91,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\run_gis.ps1
 - **可靠性網路機制**：HTTP 400 立即拋錯不盲目重試、HTTP 429 解析 `Retry-After`、HTTP 502/503 有界指數退避重試、支援逾時與中止訊號（AbortController）。
 - **完整開發驗證測試**：提供不依賴外部網路的 `test_p2.js` 測試套件（8 大測試集），可使用 Node.js 內建測試工具及 mock fetch 執行全數檢驗。
 
-### 7. 常用空間處理工具箱 (Geoprocessing Toolbox) 與欄位計算器 (Field Calculator)
+### 8. 常用空間處理工具箱 (Geoprocessing Toolbox) 與欄位計算器 (Field Calculator)
 專案原生內建完整 ArcGIS 類空間分析與屬性運算引擎，所有運算均在瀏覽器前端本地完成，不依賴任何外部後端：
 
 - **緩衝區分析 (Buffer)**：
@@ -138,7 +126,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\run_gis.ps1
   - **完整 Undo/Redo 整合**：產生的新圖層自動記錄至 `SafetyManager`，可透過頂部 Undo 或 `Ctrl+Z` 一鍵完整復原與撤除。
   - **非同步與可取消機制**：所有長時間運算均提供進度百分比條，點擊「取消」即時中止且絕不留下半成品圖層。
 
-### 10. 全介面多國語言即時切換 (Internationalization / i18n)
+### 9. 全介面多國語言即時切換 (Internationalization / i18n)
 - **頂部語言切換選單**：右上角提供便捷語言切換下拉選單，支援「**繁體中文 (zh-TW)**」與「**English (en)**」無縫切換。
 - **純前端零刷新即時響應**：點擊切換後介面立即變更，無須重新載入頁面，工作區與編輯狀態完整保留。
 - **全介面 100% 雙語覆蓋**：
