@@ -4,6 +4,93 @@
  */
 
 const IOManager = {
+  importLimits: { fileBytes: 25 * 1024 * 1024, expandedBytes: 100 * 1024 * 1024, entries: 500, features: 20000, positions: 500000 },
+  importNotes: new WeakMap(),
+  importInProgress: false,
+
+  async readImportFile(file) {
+    if (!file || !Number.isFinite(file.size) || file.size <= 0) throw new Error('檔案為空或無法讀取。');
+    if (file.size > this.importLimits.fileBytes) throw new Error('檔案超過 25 MB 安全上限，請先分割資料。');
+    const ext = file.name.split('.').pop().toLowerCase();
+    let geojson;
+    if (ext === 'zip') geojson = await this.parseShapefileZip(await file.arrayBuffer());
+    else if (ext === 'kmz') geojson = await this.parseKMZ(await file.arrayBuffer());
+    else if (ext === 'kml') geojson = this.parseKML(await file.text());
+    else if (ext === 'csv' || ext === 'txt') geojson = this.parseCSV(await file.text());
+    else if (ext === 'json' || ext === 'geojson') geojson = this.parseGeoJSON(await file.text());
+    else throw new Error('不支援的格式，請選擇 KML、KMZ、SHP ZIP、CSV 或 GeoJSON。');
+    this.validateFeatureCollection(geojson);
+    const warnings = [...(this.importNotes.get(geojson) || [])];
+    if (geojson.features.length > 2000) warnings.push('超過 2,000 個圖徵，繪製可能需要較長時間；建議分割資料。');
+    const crsLabel = warnings.some(note => note.includes('缺少 .prj')) ? '來源坐標系統未確認（缺少 .prj）' : null;
+    return { geojson, warnings, crsLabel, fileBytes: file.size, ext };
+  },
+
+  validateFeatureCollection(fc) {
+    if (!fc || fc.type !== 'FeatureCollection' || !Array.isArray(fc.features) || !fc.features.length) throw new Error('沒有可匯入的圖徵，不會建立空圖層。');
+    if (fc.features.length > this.importLimits.features) throw new Error('圖徵超過 20,000 筆安全上限，請分割資料。');
+    const crs = fc.crs?.properties?.name || fc.crs?.name;
+    if (crs && !/(?:EPSG(?::|\/0\/)4326$|CRS84$)/i.test(String(crs))) throw new Error('資料宣告的坐標系統不是 WGS84，請先轉換為 EPSG:4326；系統不會猜測投影。');
+    let positions = 0;
+    const position = p => {
+      if (!Array.isArray(p) || p.length < 2 || !p.every(Number.isFinite) || Math.abs(p[0]) > 180 || Math.abs(p[1]) > 90) throw new Error('坐標無效或超出經緯度範圍；請檢查欄位順序與投影。');
+      if (++positions > this.importLimits.positions) throw new Error('坐標節點超過 500,000 個安全上限，請簡化或分割資料。');
+    };
+    const line = (coords, min) => {
+      if (!Array.isArray(coords) || coords.length < min) throw new Error('幾何坐標數量不足。');
+      coords.forEach(position);
+    };
+    const polygon = coords => {
+      if (!Array.isArray(coords) || !coords.length) throw new Error('多邊形沒有有效環。');
+      coords.forEach(ring => {
+        line(ring, 4);
+        if (ring[0][0] !== ring[ring.length - 1][0] || ring[0][1] !== ring[ring.length - 1][1]) throw new Error('多邊形環未閉合，請修復原始資料。');
+      });
+    };
+    const geometry = (g, depth = 0) => {
+      if (!g || depth > 16) throw new Error('空幾何或幾何巢狀層數過多。');
+      const c = g.coordinates;
+      switch (g.type) {
+        case 'Point': position(c); break;
+        case 'MultiPoint': line(c, 1); break;
+        case 'LineString': line(c, 2); break;
+        case 'Polygon': polygon(c); break;
+        case 'MultiLineString':
+        case 'MultiPolygon':
+          if (!Array.isArray(c) || !c.length) throw new Error('空的多重幾何。');
+          c.forEach(part => g.type === 'MultiPolygon' ? polygon(part) : line(part, 2)); break;
+        case 'GeometryCollection':
+          if (!Array.isArray(g.geometries) || !g.geometries.length) throw new Error('空的幾何集合。');
+          g.geometries.forEach(part => geometry(part, depth + 1)); break;
+        default: throw new Error('不支援或缺少幾何類型。');
+      }
+    };
+    fc.features.forEach((f, i) => {
+      try {
+        if (f?.type !== 'Feature' || (f.properties != null && (typeof f.properties !== 'object' || Array.isArray(f.properties)))) throw new Error('圖徵或屬性結構錯誤。');
+        geometry(f.geometry);
+      } catch (error) { throw new Error(`第 ${i + 1} 個圖徵：${error.message}`); }
+    });
+    return fc;
+  },
+
+  async openImportZip(buffer) {
+    if (buffer.byteLength > this.importLimits.fileBytes) throw new Error('ZIP 超過 25 MB 安全上限。');
+    let zip;
+    try { zip = await JSZip.loadAsync(buffer); }
+    catch (_) { throw new Error('壓縮檔損壞或格式不正確，請重新壓縮。'); }
+    const files = Object.values(zip.files).filter(entry => !entry.dir);
+    if (!files.length || files.length > this.importLimits.entries) throw new Error('壓縮檔為空或超過 500 個檔案安全上限。');
+    let total = 0;
+    for (const entry of files) {
+      // JSZip 3.x stores central-directory sizes on compressed entries, before inflation.
+      const size = entry._data?.uncompressedSize;
+      if (!Number.isFinite(size) || size < 0) throw new Error('無法確認解壓縮大小，已停止匯入。');
+      total += size;
+      if (total > this.importLimits.expandedBytes) throw new Error('解壓縮內容超過 100 MB 安全上限，請分割檔案。');
+    }
+    return { zip, files };
+  },
   /**
    * Helper: Trigger browser file download
    */
@@ -166,6 +253,7 @@ const IOManager = {
    * Parse KML string or DOM to GeoJSON FeatureCollection
    */
   parseKML(kmlText) {
+    if (/<!DOCTYPE|<!ENTITY/i.test(kmlText)) throw new Error('KML 含有不支援的 DTD／實體宣告，已停止解析。');
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
     
@@ -183,7 +271,7 @@ const IOManager = {
         feat.properties.name = feat.properties.title || `KML 圖元 #${i + 1}`;
       }
     });
-    return geojson;
+    return this.validateFeatureCollection(geojson);
   },
 
   /**
@@ -194,15 +282,16 @@ const IOManager = {
       throw new Error('系統缺少 JSZip 函式庫，無法解析 KMZ 檔案！');
     }
     try {
-      const zip = await JSZip.loadAsync(arrayBuffer);
-      const kmlEntry = Object.values(zip.files).find(f => /\.kml$/i.test(f.name) && !f.dir);
+      const { files } = await this.openImportZip(arrayBuffer);
+      const candidates = files.filter(f => /\.kml$/i.test(f.name));
+      const kmlEntry = candidates.find(f => /^doc\.kml$/i.test(f.name)) || candidates[0];
+      if (candidates.length > 1 && !candidates.some(f => /^doc\.kml$/i.test(f.name))) throw new Error('KMZ 含多個 KML 且沒有根目錄 doc.kml，請明確選擇並匯出單一 KML。');
       if (!kmlEntry) {
         throw new Error('KMZ 壓縮檔內未找到有效的 .kml 文件！');
       }
       const kmlText = await kmlEntry.async('string');
       return this.parseKML(kmlText);
     } catch (err) {
-      console.error('KMZ 解析錯誤:', err);
       throw new Error(`KMZ 解析失敗: ${err.message || '檔案可能損壞或非標準 KMZ'}`);
     }
   },
@@ -217,6 +306,23 @@ const IOManager = {
   async parseShapefileZip(arrayBuffer) {
 
     try {
+      const { files } = await this.openImportZip(arrayBuffer);
+      const shapes = files.filter(f => /\.shp$/i.test(f.name));
+      if (!shapes.length) throw new Error('ZIP 缺少 .shp 主檔，請選擇包含 Shapefile 的壓縮檔。');
+      const names = new Map(files.map(f => [f.name.toLowerCase(), f]));
+      const warnings = [];
+      for (const shape of shapes) {
+        const stem = shape.name.slice(0, -4).toLowerCase();
+        if (!names.has(`${stem}.dbf`)) throw new Error(`「${shape.name}」缺少同名 .dbf 屬性檔，請重新匯出完整 Shapefile。`);
+        if (!names.has(`${stem}.shx`)) warnings.push(`「${shape.name}」缺少 .shx 索引；解析器可順序讀取，但建議提供完整檔案。`);
+        const prj = names.get(`${stem}.prj`);
+        if (!prj) warnings.push(`「${shape.name}」缺少 .prj，來源坐標系統不明；僅在確認原始資料為 WGS84 經緯度時繼續。`);
+        else {
+          const text = (await prj.async('string')).trim();
+          if (!/^(?:GEOGCS|PROJCS|GEODCRS|GEOGCRS|PROJCRS)\s*\[/i.test(text)) throw new Error(`「${shape.name}」的 .prj 無法辨識，請重新匯出投影資訊。`);
+          warnings.push(`「${shape.name}」依 .prj 由 SHP 解析器處理坐標轉換；匯入後請核對位置。`);
+        }
+      }
       const result = await shp(arrayBuffer);
       // shp() can return a single GeoJSON or an array of GeoJSONs (multi-layer)
       if (Array.isArray(result)) {
@@ -227,15 +333,17 @@ const IOManager = {
             mergedFeatures.push(...layer.features);
           }
         });
-        return {
+        const merged = {
           type: 'FeatureCollection',
           features: mergedFeatures
         };
+        this.importNotes.set(merged, warnings);
+        return this.validateFeatureCollection(merged);
       }
-      return result;
+      this.importNotes.set(result, warnings);
+      return this.validateFeatureCollection(result);
     } catch (err) {
-      console.error('SHP 解析錯誤:', err);
-      throw new Error(`Shapefile ZIP 解析失敗: ${err.message || '請確認壓縮檔內含有 .shp 與 .dbf 等檔案'}`);
+      throw new Error(`Shapefile ZIP 解析失敗: ${String(err.message || '請重新匯出完整檔案').slice(0, 240)}`);
     }
   },
 
@@ -390,6 +498,7 @@ const IOManager = {
       header: true,
       skipEmptyLines: true
     });
+    if (parsed.errors?.length) throw new Error(`CSV 結構錯誤（資料列 ${(parsed.errors[0].row ?? 0) + 1}），請檢查引號及欄位數量。`);
 
     if (!parsed.data || parsed.data.length === 0) {
       throw new Error('CSV 檔案內無有效資料列！');
@@ -405,6 +514,7 @@ const IOManager = {
     const lonCol = fields.find(f => /^(lon|lng|long|longitude|x|x_coord|經度|经度)$/i.test(f.trim()));
 
     const features = [];
+    const invalidRows = [];
 
     parsed.data.forEach((row, idx) => {
       let geometry = null;
@@ -414,15 +524,17 @@ const IOManager = {
         try {
           geometry = wellknown.parse(row[wktCol].trim());
         } catch (e) {
-          console.warn(`第 ${idx + 1} 列 WKT 解析失敗:`, row[wktCol]);
+          // Do not log raw properties or coordinate strings.
         }
+        if (!geometry) { invalidRows.push(idx + 1); return; }
       }
 
       // 2. Try Lat / Lon
       if (!geometry && latCol && lonCol) {
-        const latVal = parseFloat(row[latCol]);
-        const lonVal = parseFloat(row[lonCol]);
-        if (!isNaN(latVal) && !isNaN(lonVal) && Math.abs(latVal) <= 90 && Math.abs(lonVal) <= 180) {
+        const strictNumber = value => /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(String(value ?? '').trim()) ? Number(value) : NaN;
+        const latVal = strictNumber(row[latCol]);
+        const lonVal = strictNumber(row[lonCol]);
+        if (Number.isFinite(latVal) && Number.isFinite(lonVal) && Math.abs(latVal) <= 90 && Math.abs(lonVal) <= 180) {
           geometry = {
             type: 'Point',
             coordinates: [lonVal, latVal]
@@ -446,17 +558,19 @@ const IOManager = {
           geometry: geometry,
           properties: properties
         });
-      }
+      } else invalidRows.push(idx + 1);
     });
+
+    if (invalidRows.length) throw new Error(`CSV 有 ${invalidRows.length} 筆無效空間資料（資料列 ${invalidRows.slice(0, 10).join('、')}${invalidRows.length > 10 ? '…' : ''}）。請檢查空值、數字、WKT、經緯度欄位及範圍；未匯入任何資料。`);
 
     if (features.length === 0) {
       throw new Error('未在 CSV 中偵測到可用的空間資料！請確認含有 WKT 欄位（如 wkt/geometry）或經緯度欄位（如 lat/lon/x/y）。');
     }
 
-    return {
+    return this.validateFeatureCollection({
       type: 'FeatureCollection',
       features: features
-    };
+    });
   },
 
   // =========================================================================
@@ -481,19 +595,19 @@ const IOManager = {
     try {
       const data = JSON.parse(jsonText);
       if (data.type === 'FeatureCollection') {
-        return data;
+        return this.validateFeatureCollection(data);
       } else if (data.type === 'Feature') {
-        return { type: 'FeatureCollection', features: [data] };
+        return this.validateFeatureCollection({ type: 'FeatureCollection', features: [data], crs: data.crs });
       } else if (data.type && data.coordinates) {
         // Geometry object
-        return {
+        return this.validateFeatureCollection({
           type: 'FeatureCollection',
           features: [{ type: 'Feature', geometry: data, properties: { name: '已匯入圖元' } }]
-        };
+        });
       }
       throw new Error('檔案非有效的 GeoJSON 格式！');
     } catch (e) {
-      throw new Error(`GeoJSON 解析失敗: ${e.message}`);
+      throw new Error(e instanceof SyntaxError ? 'GeoJSON JSON 語法錯誤，請檢查檔案是否完整。' : `GeoJSON 解析失敗: ${e.message}`);
     }
   }
 };

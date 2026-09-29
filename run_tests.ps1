@@ -25,7 +25,8 @@ $testFiles = @(
     'test_security.js',
     'test_geoprocessing.js',
     'test_i18n.js',
-    'test_phase2_ui.js'
+    'test_phase2_ui.js',
+    'test_import_safety.js'
 )
 
 foreach ($testFile in $testFiles) {

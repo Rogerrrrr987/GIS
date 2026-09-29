@@ -9,7 +9,7 @@
 - `run_gis.bat`：Windows 雙擊啟動入口。
 - `run_gis.ps1`：使用 Windows PowerShell 內建功能提供本機 HTTP 服務。
 - `run_tests.bat`：Windows 雙擊執行完整離線測試。
-- `run_tests.ps1`：依序執行四套 Node.js 自動化測試並於失敗時停止。
+- `run_tests.ps1`：依序執行 Node.js 自動化測試並於失敗時停止。
 
 ## JavaScript 模組
 
@@ -28,6 +28,8 @@
 - `js/i18n.js`：多國語言國際化模組（繁體中文 / 英文即時切換、DOM 屬性轉換、Leaflet Geoman 同步、localStorage 偏好保存）。
 
 ## 開發驗證測試
+
+- `test_import_safety.js`：匯入驗證、資源上限、投影提示與失敗回復測試。
 
 - `test_p2.js`：路網分析核心測試套件（使用 Node.js 內建模組及 mock fetch，僅供開發驗證，非正式啟動依賴）。
 - `test_security.js`：安全與敏感資料保護測試套件（XSS 防護、APIKey 隔離、OSRM 授權 Fail-Closed、CDN 固定版本）。

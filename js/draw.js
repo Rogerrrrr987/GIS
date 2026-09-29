@@ -723,14 +723,17 @@ const DrawManager = {
   /**
    * Load a FeatureCollection onto the map
    */
-  loadFeatureCollection(fc, fitBounds = true) {
+  loadFeatureCollection(fc, fitBounds = true, { prepareOnly = false } = {}) {
     if (!fc || !fc.features) return;
 
     const addedLayers = [];
 
     fc.features.forEach((feature, index) => {
       const geom = feature.geometry;
-      if (!geom) return;
+      if (!geom) {
+        if (prepareOnly) throw new Error(`第 ${index + 1} 個圖徵沒有幾何，已停止匯入。`);
+        return;
+      }
 
       let layer = null;
       const style = feature.properties?.style || this.currentStyle;
@@ -780,15 +783,23 @@ const DrawManager = {
           layer.featureProps.name = `匯入圖元 #${index + 1}`;
         }
         
-        const activeLayer = LayerManager.getActiveLayer();
-        if (activeLayer) {
-           layer.gisLayerId = activeLayer.id;
-           this.setupLayerInteractions(layer);
-           activeLayer.featureGroup.addLayer(layer);
-           addedLayers.push(layer);
-        }
-      }
+        this.setupLayerInteractions(layer);
+        addedLayers.push(layer);
+      } else if (prepareOnly) throw new Error(`第 ${index + 1} 個圖徵為 ${geom.type}，目前繪圖圖層不支援此幾何；請先轉為單一幾何。`);
     });
+
+    if (prepareOnly) return addedLayers;
+    const activeLayer = LayerManager.getActiveLayer();
+    if (!activeLayer) throw new Error('沒有可匯入的作用中圖層。');
+    try {
+      addedLayers.forEach(layer => {
+        layer.gisLayerId = activeLayer.id;
+        activeLayer.featureGroup.addLayer(layer);
+      });
+    } catch (error) {
+      addedLayers.forEach(layer => activeLayer.featureGroup.removeLayer(layer));
+      throw error;
+    }
 
     if (fitBounds && addedLayers.length > 0) {
       try {

@@ -885,54 +885,28 @@ const App = {
    * Process and import multiple files
    */
   async processFiles(fileList) {
+    if (IOManager.importInProgress) { this.showToast('已有匯入作業，請先完成或取消預覽。', 'warning'); return; }
     for (const file of Array.from(fileList)) {
       await this.processSingleFile(file);
     }
   },
 
   async processSingleFile(file) {
+    if (IOManager.importInProgress) { this.showToast('已有匯入作業，請先完成或取消預覽。', 'warning'); return false; }
+    IOManager.importInProgress = true;
     const filename = file.name;
     const ext = filename.split('.').pop().toLowerCase();
 
     this.showToast(`正在讀取檔案「${filename}」...`, 'info');
 
     try {
-      let geojson = null;
-
-      if (ext === 'kml') {
-        const text = await file.text();
-        geojson = IOManager.parseKML(text);
-      } else if (ext === 'kmz') {
-        // KMZ is a zipped KML
-        if (typeof JSZip !== 'undefined') {
-          const zip = await JSZip.loadAsync(file);
-          const kmlFile = Object.values(zip.files).find(f => f.name.toLowerCase().endsWith('.kml'));
-          if (!kmlFile) throw new Error('KMZ 檔案內找不到 .kml 內容！');
-          const kmlText = await kmlFile.async('text');
-          geojson = IOManager.parseKML(kmlText);
-        } else {
-          throw new Error('KMZ 解析需要 JSZip 支援，請匯入 .kml 或使用 shapefile zip');
-        }
-      } else if (ext === 'zip') {
-        // Shapefile ZIP
-        const buffer = await file.arrayBuffer();
-        geojson = await IOManager.parseShapefileZip(buffer);
-      } else if (ext === 'csv' || ext === 'txt') {
-        const text = await file.text();
-        geojson = IOManager.parseCSV(text);
-      } else if (ext === 'geojson' || ext === 'json') {
-        const text = await file.text();
-        geojson = IOManager.parseGeoJSON(text);
-      } else {
-        throw new Error(`不支援的檔案格式 (.${ext})。請提供 KML, SHP(ZIP), CSV 或 GeoJSON 檔案。`);
-      }
-
-      if (geojson && geojson.features) {
-        await this.openImportPreview({ geojson, filename, ext });
-      }
+      const parsed = await IOManager.readImportFile(file);
+      return await this.openImportPreview({ ...parsed, filename, ext });
     } catch (err) {
-      console.error('檔案匯入失敗:', err);
       this.showToast(`匯入「${filename}」失敗: ${err.message}`, 'error');
+      return false;
+    } finally {
+      IOManager.importInProgress = false;
     }
   },
 
@@ -945,8 +919,7 @@ const App = {
 
   openImportPreview(pendingImport) {
     if (!this.importPreviewModal) {
-      DrawManager.loadFeatureCollection(pendingImport.geojson);
-      return Promise.resolve(true);
+      throw new Error('無法顯示匯入預覽，已停止匯入。請重新載入頁面。');
     }
 
     this.pendingImport = pendingImport;
@@ -962,12 +935,14 @@ const App = {
       this.createImportSummaryItem('圖元數量', `${features.length} 筆`),
       this.createImportSummaryItem('幾何類型', geometryTypes.join('、') || '無'),
       this.createImportSummaryItem('屬性欄位', `${fieldCount} 個`),
-      this.createImportSummaryItem('坐標系統', crsInfo.label)
+      this.createImportSummaryItem('坐標系統', pendingImport.crsLabel || crsInfo.label)
     );
+    if (pendingImport.fileBytes != null) summary.append(this.createImportSummaryItem('檔案大小', pendingImport.fileBytes < 1024 ? `${pendingImport.fileBytes} B` : `${(pendingImport.fileBytes / 1024).toFixed(1)} KB`));
 
     const warning = document.getElementById('import-preview-warning');
-    warning.hidden = !crsInfo.warning;
-    warning.textContent = crsInfo.warning || '';
+    const warnings = [...(pendingImport.warnings || []), crsInfo.warning].filter(Boolean);
+    warning.hidden = !warnings.length;
+    warning.textContent = warnings.join(' ');
     this.importPreviewModal.classList.add('active');
 
     return new Promise(resolve => {
@@ -982,18 +957,46 @@ const App = {
     this.importPreviewModal?.classList.remove('active');
     this.pendingImport = null;
     if (shouldImport) {
-      if (window.LayerManager) {
+      const previousLayers = LayerManager.layers.slice();
+      const previousActive = LayerManager.activeLayerId;
+      const safety = window.SafetyManager;
+      const wasSuspended = safety?.suspended;
+      try {
+        // Build every feature off-map before publishing a new layer or history entry.
+        IOManager.validateFeatureCollection(pending.geojson);
+        const prepared = DrawManager.loadFeatureCollection(pending.geojson, false, { prepareOnly: true });
+        if (!prepared?.length) throw new Error('沒有可繪製的圖徵。');
+        if (safety) safety.suspended = true;
         const types = [...new Set((pending.geojson.features || []).map(feature => feature.geometry?.type).filter(Boolean))];
         const geometryType = types.length === 1
           ? types[0].includes('Point') ? 'Point' : types[0].includes('Line') ? 'Line' : types[0].includes('Polygon') ? 'Polygon' : 'any'
           : 'any';
         const newLayer = LayerManager.createLayer(pending.filename || '匯入圖層', geometryType);
         newLayer.source = pending.filename || 'import';
-        LayerManager.setActiveLayer(newLayer.id);
+        prepared.forEach(layer => { layer.gisLayerId = newLayer.id; newLayer.featureGroup.addLayer(layer); });
+        LayerManager.render();
+        TableManager.render();
+        this.updateStats();
+      } catch (error) {
+        LayerManager.layers.filter(layer => !previousLayers.includes(layer)).forEach(layer => this.map.removeLayer(layer.featureGroup));
+        LayerManager.layers = previousLayers;
+        LayerManager.activeLayerId = previousActive;
+        shouldImport = false;
+        this.showToast(`匯入失敗，已保留原有資料：${error.message}`, 'error');
+      } finally {
+        if (safety) safety.suspended = wasSuspended;
       }
-      DrawManager.loadFeatureCollection(pending.geojson);
-      if (window.LayerManager) LayerManager.render();
-      this.showToast(`成功匯入「${pending.filename}」！共載入 ${pending.geojson.features.length} 個圖元。`, 'success');
+      if (shouldImport) {
+        safety?.recordChange('匯入圖資');
+        this.showToast(`成功匯入「${pending.filename}」！共載入 ${pending.geojson.features.length} 個圖元。`, 'success');
+        try { const bounds = LayerManager.getActiveLayer().featureGroup.getBounds(); if (bounds.isValid()) this.map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 }); } catch (_) {}
+      } else {
+        try {
+          LayerManager.render();
+          TableManager.render();
+          this.updateStats();
+        } catch (_) { /* Data is restored even if the view itself needs a reload. */ }
+      }
     } else {
       this.showToast(`已取消匯入「${pending.filename}」`, 'info');
     }
@@ -1031,7 +1034,7 @@ const App = {
         warning: '偵測到座標值超出經緯度範圍，可能是 EPSG:3826 等投影坐標。請先轉換為 WGS84（EPSG:4326），否則位置可能錯誤。'
       };
     }
-    return { label: '未宣告（假設 EPSG:4326）', warning: '' };
+    return { label: 'WGS84 經緯度（範圍已檢查）', warning: '坐標範圍檢查不等同確認來源投影；請核對位置。系統不會自動交換經緯度。' };
   },
 
   findFirstCoordinate(features) {

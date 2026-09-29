@@ -1072,37 +1072,22 @@ window.RoutingManager = {
   },
 
   async importPointFile(file) {
+    if (this.isBusy || this.pendingFileImport || IOManager.importInProgress) {
+      window.App?.showToast('已有分析或匯入作業，請先完成或取消。', 'warning');
+      return;
+    }
+    IOManager.importInProgress = true;
     try {
       const fileName = file.name;
-      const lower = fileName.toLowerCase();
-      let geojson = null;
-      let crsInfo = { crs: 'EPSG:4326', warning: '' };
-
-      if (lower.endsWith('.geojson') || lower.endsWith('.json')) {
-        geojson = await IOManager.parseGeoJSON(await file.text());
-      } else if (lower.endsWith('.kml')) {
-        geojson = await IOManager.parseKML(await file.text());
-      } else if (lower.endsWith('.kmz')) {
-        geojson = await IOManager.parseKMZ(await file.arrayBuffer());
-      } else if (lower.endsWith('.csv') || lower.endsWith('.txt')) {
-        const text = await file.text();
-        const parsed = await IOManager.parseCSV(text);
-        geojson = parsed.geojson;
-        crsInfo = parsed.crsInfo || crsInfo;
-      } else if (lower.endsWith('.zip')) {
-        const parsed = await IOManager.parseSHP(await file.arrayBuffer());
-        geojson = parsed.geojson;
-        crsInfo = parsed.crsInfo || crsInfo;
-      } else {
-        throw new Error('不支援的檔案格式，請匯入 .zip(SHP)、.kml、.kmz、.geojson 或 .csv 檔案。');
-      }
-
-      if (!geojson) throw new Error('檔案解析結果為空');
+      const { geojson, warnings, crsLabel, fileBytes } = await IOManager.readImportFile(file);
+      const crsInfo = { crs: crsLabel || 'WGS84（範圍已檢查）', warning: [...warnings, '坐標範圍檢查不等同確認來源投影；不自動交換經緯度。'].join('；') };
+      if (!document.getElementById('routing-shp-preview-modal')) throw new Error('無法顯示匯入預覽，已停止匯入。');
 
       this.pendingFileImport = {
         fileName,
         geojson,
         crsInfo,
+        fileBytes,
         availableFields: this.getAvailablePropertyFields(geojson),
         previewPoints: [],
         resolvedExistingPoints: [],
@@ -1111,7 +1096,10 @@ window.RoutingManager = {
 
       this.showFilePreviewModal();
     } catch (error) {
+      this.pendingFileImport = null;
       window.App?.showToast(`匯入點位失敗：${error.message}`, 'error');
+    } finally {
+      if (!this.pendingFileImport) IOManager.importInProgress = false;
     }
   },
 
@@ -1308,6 +1296,7 @@ window.RoutingManager = {
         createItem('非點幾何', `${extraction.nonPointCount} 筆略過`),
         createItem('加入後總點數', `${totalPotential} 點`)
       );
+      if (pending.fileBytes != null) summary.append(createItem('檔案大小', pending.fileBytes < 1024 ? `${pending.fileBytes} B` : `${(pending.fileBytes / 1024).toFixed(1)} KB`));
     }
 
     const overflowBox = document.getElementById('routing-shp-overflow-container');
@@ -1444,27 +1433,30 @@ window.RoutingManager = {
 
     if (!newPointsToImport.length) return;
 
-    this.markRouteOutdated();
-    this.resetPointValidation();
-
-    if (importMode === 'replace') {
-      this.points = newPointsToImport;
-    } else {
-      // Append mode: update existing points with resolved roles (e.g. keep-last demoted old start/end)
-      if (pending.resolvedExistingPoints && pending.resolvedExistingPoints.length === this.points.length) {
-        this.points = pending.resolvedExistingPoints.concat(newPointsToImport);
+    const previousPoints = this.points;
+    try {
+      if (importMode === 'replace') {
+        this.points = newPointsToImport;
       } else {
-        const combined = this.points.concat(newPointsToImport);
-        this.resolveRolesForCombined(combined, mode, conflictResolution);
+        // Work on copies so a failed render cannot alter existing point roles.
+        const existing = pending.resolvedExistingPoints?.length === this.points.length
+          ? pending.resolvedExistingPoints : this.points;
+        const combined = existing.map(point => ({ ...point })).concat(newPointsToImport);
+        if (existing === this.points) this.resolveRolesForCombined(combined, mode, conflictResolution);
         this.points = combined;
       }
+      this.syncRoleConstraints();
+      this.render();
+    } catch (error) {
+      this.points = previousPoints;
+      try { this.render(); } catch (_) {}
+      window.App?.showToast('點位匯入未完成，已保留原有路網資料。請重新載入後重試。', 'error');
+      return;
     }
-
-    this.syncRoleConstraints();
-
+    this.markRouteOutdated();
+    this.resetPointValidation();
     const bounds = L.latLngBounds(this.points.map(p => [p.lat, p.lng]));
     this.cancelFileImport();
-    this.render();
 
     if (bounds.isValid() && this.map) {
       this.map.fitBounds(bounds.pad(0.15), { maxZoom: 16 });
@@ -1478,6 +1470,7 @@ window.RoutingManager = {
   cancelFileImport() {
     document.getElementById('routing-shp-preview-modal')?.classList.remove('active');
     this.pendingFileImport = null;
+    if (typeof IOManager !== 'undefined') IOManager.importInProgress = false;
   },
 
   getAvailablePropertyFields(geojson) {

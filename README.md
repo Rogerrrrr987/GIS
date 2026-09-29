@@ -66,7 +66,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\run_gis.ps1
   - 其餘欄位自動保留為圖元屬性表。
 - **GeoJSON**（`.geojson`, `.json`）：標準 GIS 向量格式。
 
+匯入安全限制：單檔最多 25 MB、ZIP 最多 500 個檔案且解壓縮總量最多 100 MB、最多 20,000 個圖徵與 500,000 個坐標節點。超限請先分割資料；超過 2,000 個圖徵會提示效能影響。這些限制不是防止所有惡意壓縮檔的保證，請只使用可信來源。
+
+CSV 有錯誤資料列時整份停止匯入並列出資料列序號，不自動交換經緯度或靜默略過。SHP 必須有同名 `.shp`、`.dbf`；缺少 `.shx` 會警告，缺少 `.prj` 時須自行確認來源確實為 WGS84。已提供的 `.prj` 交由既有 SHP 解析器轉換，不做第二次投影轉換。匯入確認前不改動既有資料，寫入失敗會移除本次部分圖層。
+
+一般繪圖圖層目前支援 Point、LineString、Polygon、MultiPolygon；其他幾何會明確拒絕整份匯入，避免遺失部分圖徵。路網點位匯入仍支援 Point / MultiPoint，並在預覽中列出略過的非點幾何。
+
 ### 3. 圖資輸出 (Export)
+
 點擊頂部「**匯出圖資**」下拉選單：
 - **KML**：匯出符合 OGC KML 2.2 標準的檔案，包含幾何坐標、自訂樣式顏色與 ExtendedData 屬性。
 - **Shapefile (ZIP)**：一鍵封裝 `.shp`、`.shx`、`.dbf`、`.prj` (WGS84 EPSG:4326) 壓縮包。
