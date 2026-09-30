@@ -422,7 +422,9 @@ const SafetyManager = {
       }
 
       const mapState = project.map || {};
-      if (mapState.baseLayer && App.baseLayers?.[mapState.baseLayer]) App.setBaseLayer(mapState.baseLayer);
+      if (mapState.baseLayer && App.baseLayers && typeof App.setBaseLayer === 'function') {
+        App.setBaseLayer(App.baseLayers[mapState.baseLayer] ? mapState.baseLayer : 'nlsc_emap');
+      }
       if (App.cadastralLayer) {
         App.isCadastralActive = Boolean(mapState.cadastral);
         if (App.isCadastralActive && !this.map.hasLayer(App.cadastralLayer)) this.map.addLayer(App.cadastralLayer);

@@ -164,7 +164,6 @@
       'basemap.nlsc_emap': '臺灣通用圖 (NLSC)',
       'basemap.nlsc_photo': '國土航照',
       'basemap.nlsc_mix': '航照混合',
-      'basemap.osm': 'OSM街圖',
       'basemap.satellite': 'ESRI衛星',
       'basemap.topo': '地形圖',
       'basemap.cadastral': '疊加地籍圖',
@@ -451,7 +450,6 @@
       'basemap.nlsc_emap_title': '內政部國土測繪中心 臺灣通用版電子地圖 (http://maps.nlsc.gov.tw/S_Maps/wmts)',
       'basemap.nlsc_photo_title': '國土測繪中心 正射影像航照圖 (PHOTO2)',
       'basemap.nlsc_mix_title': '國土測繪中心 航照混合圖 (PHOTO_MIX)',
-      'basemap.osm_title': 'OpenStreetMap 標準街圖',
       'basemap.satellite_title': 'ESRI 全球衛星高解析影像',
       'basemap.topo_title': '地形等高線圖',
 
@@ -745,7 +743,6 @@
       'basemap.nlsc_emap': 'Taiwan EMAP (NLSC)',
       'basemap.nlsc_photo': 'Orthophoto (NLSC)',
       'basemap.nlsc_mix': 'Photo Mix (NLSC)',
-      'basemap.osm': 'OSM Street',
       'basemap.satellite': 'ESRI Satellite',
       'basemap.topo': 'Topographic',
       'basemap.cadastral': 'Cadastral Overlay',
@@ -1032,7 +1029,6 @@
       'basemap.nlsc_emap_title': 'NLSC Taiwan Electronic Map (EMAP)',
       'basemap.nlsc_photo_title': 'NLSC Aerial Orthophoto (PHOTO2)',
       'basemap.nlsc_mix_title': 'NLSC Photo & Map Hybrid (PHOTO_MIX)',
-      'basemap.osm_title': 'OpenStreetMap Standard Streets',
       'basemap.satellite_title': 'ESRI World Imagery',
       'basemap.topo_title': 'Topographic Map',
 
